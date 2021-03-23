@@ -1,27 +1,31 @@
 use crate::stonks_error::RuntimeError;
+use serde::{Serialize, Deserialize};
 use std::{
-    io::{stdin},
+    fs,
+    io::{stdin, Write},
     path::{Path, PathBuf}
 };
 // use chrono::Utc;
 
 const REQUEST_TOKEN_URL_SANDBOX: &str = "https://api.etrade.com/oauth/request_token";
-// const REQUEST_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/request_token";
+const SANDBOX_REQUEST_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/request_token";
 
 // const DEFAULT_PORT: u16 = 8888;
 const FILE_NAME: &str = "client.yml";
 const CONFIG_DIR: &str = ".config";
 const APP_CONFIG_DIR: &str = "stonks-terminal";
-const TOKEN_CACHE_FILE: &str = ".stonks_term_token_cache.json";
+const TOKEN_CACHE_FILE: &str = ".stonks_terminal_token_cache.json";
 
 pub struct UrlConfig<'a> {
     pub request_token_url: &'a str,
+    pub sandbox_request_token_url: &'a str,
 }
 
 impl<'a> Default for UrlConfig<'a> {
     fn default() -> Self {
         Self {
             request_token_url: REQUEST_TOKEN_URL_SANDBOX,
+            sandbox_request_token_url: SANDBOX_REQUEST_TOKEN_URL,
         }
     }
 }
@@ -31,11 +35,11 @@ struct ConfigPaths {
     token_cache_path: PathBuf,
 }
 
-#[derive(Debug)]
+#[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ClientConfig {
     pub consumer_key: String,
     pub consumer_secret: String,
-    pub verification_code: String,
+    pub verification_code: Option<String>,
 }
 
 impl ClientConfig {
@@ -43,38 +47,54 @@ impl ClientConfig {
         Self {
             consumer_key: "".to_string(),
             consumer_secret: "".to_string(),
-            verification_code: "".to_string(),
+            verification_code: None,
         }
     }
 
     pub fn load_config(&mut self) -> Result<(), RuntimeError> {
         let paths = self.get_or_build_paths()?;
+        if paths.config_file_path.exists() {
+            let config_string = fs::read_to_string(&paths.config_file_path)?;
+            let config_yaml: ClientConfig = serde_yaml::from_str(&config_string)?;
 
-        println!(
-            "Config will be saved to {}",
-            paths.config_file_path.display()
-        );
+            self.consumer_key = config_yaml.consumer_key;
+            self.consumer_secret = config_yaml.consumer_secret;
 
-        println!("{}", "Setup instructions");
+            Ok(())
+        } else {
+            println!(
+                "Config will be saved to {}",
+                paths.config_file_path.display()
+            );
 
-        println!("1. {}", "Enter consumer key.");
-        let mut consumer_key = String::new();
-        stdin().read_line(&mut consumer_key)?;
-        self.consumer_key = consumer_key.trim().to_string();
+            println!("{}", "Lets get setup!");
 
-        println!("2. {}", "Enter consumer secret.");
-        let mut consumer_secret = String::new();
-        stdin().read_line(&mut consumer_secret)?;
-        self.consumer_secret = consumer_secret.trim().to_string();
+            let consumer_key = Self::get_key_from_input("1. Enter consumer_key")?;
+            let consumer_secret = Self::get_key_from_input("2. Enter consumer_secret")?;
 
-        // println!("3. {}", "Manually copy the verification code to your clipboard and paste here: ");
-        // let mut verification_code = String::new();
-        // stdin().read_line(&mut verification_code)?;
-        // self.verification_code = verification_code.trim().to_string();
 
-        // timestamp: Utc::today().with_timezone(&chrono_tz::US::Eastern).naive_local(),
+            let client_config = Self {
+                consumer_key,
+                consumer_secret,
+                verification_code: None,
+            };
 
-        Ok(())
+            let client_yaml = serde_yaml::to_string(&client_config)?;
+            let mut new_config = fs::File::create(&paths.config_file_path)?;
+            write!(new_config, "{}", client_yaml)?;
+
+            self.consumer_key = client_config.consumer_key.trim().to_string();
+            self.consumer_secret = client_config.consumer_secret.trim().to_string();
+
+            // println!("3. {}", "Manually copy the verification code to your clipboard and paste here: ");
+            // let mut verification_code = String::new();
+            // stdin().read_line(&mut verification_code)?;
+            // self.verification_code = verification_code.trim().to_string();
+
+            // timestamp: Utc::today().with_timezone(&chrono_tz::US::Eastern).naive_local(),
+
+            Ok(())
+        }
     }
 
     fn get_or_build_paths(&self) -> Result<ConfigPaths, RuntimeError> {
@@ -83,6 +103,13 @@ impl ClientConfig {
                 let path = Path::new(&home);
                 let home_config_dir = path.join(CONFIG_DIR);
                 let app_config_dir = home_config_dir.join(APP_CONFIG_DIR);
+
+                if !home_config_dir.exists() {
+                    fs::create_dir(home_config_dir)?;
+                }
+                if !app_config_dir.exists() {
+                    fs::create_dir(&app_config_dir)?;
+                }
 
                 let config_file_path = &app_config_dir.join(FILE_NAME);
                 let token_cache_path = &app_config_dir.join(TOKEN_CACHE_FILE);
@@ -96,5 +123,13 @@ impl ClientConfig {
             },
             None => Err(RuntimeError { message: "No $home path for client config".to_string() })
         }
+    }
+
+    fn get_key_from_input(label: &str) -> Result<String, RuntimeError> {
+        println!("{}", label);
+
+        let mut key = String::new();
+        stdin().read_line(&mut key)?;
+        Ok(key)
     }
 }

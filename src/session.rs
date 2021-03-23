@@ -1,10 +1,15 @@
 use crate::stonks_error::RuntimeError;
 use crate::config::UrlConfig;
-use reqwest::header::{AUTHORIZATION};
+// use reqwest::header::{AUTHORIZATION};
 // use secstr::SecUtf8;
 // use serde::ser::Serialize;
-// use hyper::{Body, Client, Method, Request, Uri};
-// use hyper_tls::HttpsConnector;
+use hyper::{
+    client::{connect::dns::GaiResolver, HttpConnector},
+    Client, Body, Method, Request, Uri
+};
+use hyper_tls::HttpsConnector;
+
+type HttpClient = Client<HttpsConnector<HttpConnector<GaiResolver>>, hyper::Body>;
 
 #[derive(Debug, Clone)]
 pub struct Credentials {
@@ -39,47 +44,59 @@ where
   }
 }
 
+#[derive(Debug)]
+pub enum Mode {
+    Sandbox,
+    Live,
+}
+
 pub struct Session {
-    urls: UrlConfig<'static>
+    mode: Mode,
+    urls: UrlConfig<'static>,
+    client: HttpClient,
 }
 
 impl Session {
-    pub fn new() -> Self {
+    pub fn new(mode: Mode) -> Self {
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
         Self {
+            mode,
             urls: UrlConfig::default(),
+            client,
         }
     }
 
     pub async fn request_token(&self, consumer: &Credentials) -> Result<(), RuntimeError> {
-        // let uri = http::Uri::from_static(self.urls.request_token_url);
-        let uri = self.urls.request_token_url;
+        let uri = match self.mode {
+            Mode::Sandbox => self.urls.request_token_url,
+            Mode::Live => self.urls.request_token_url,
+        };
         let authorization_header = oauth::Builder::<_, _>::new(consumer.clone().into(), oauth::HmacSha1)
             .callback("oob")
             .get(&uri, &());
 
-        let res = send_request(uri, authorization_header).await?;
+        let res = self.send_request(uri, authorization_header).await?;
 
         Ok(())
     }
-}
 
-async fn send_request(uri: &str, authorization: String) -> Result<(), RuntimeError> {
-    // let req = Request::builder()
-    //     .method(Method::GET)
-    //     .uri(uri)
-    //     .header("authorization", authorization)
-    //     .body(Body::empty());
+    async fn send_request(&self, uri: &str, authorization: String) -> Result<(), RuntimeError> {
+        let req = Request::builder()
+            .method(Method::GET)
+            .uri(uri)
+            .header("authorization", authorization)
+            .body(Body::empty());
 
-    // let https = HttpsConnector::new();
-    // let client = Client::builder().build::<_, hyper::Body>(https);
-    // let req = client.request(req.unwrap());
-    // let resp = req.await?;
-    // dbg!(resp);
+        let req = self.client.request(req.unwrap());
+        let resp = req.await?;
+        dbg!(resp);
 
-    let client = reqwest::Client::builder().build()?;
-    let req = client.get(uri).header(AUTHORIZATION, authorization);
-    let resp = req.send().await?;
-    dbg!(resp);
+        // let client = reqwest::Client::builder().build()?;
+        // let req = client.get(uri).header(AUTHORIZATION, authorization);
+        // let resp = req.send().await?;
+        // dbg!(resp);
 
-    Ok(())
+        Ok(())
+    }
 }

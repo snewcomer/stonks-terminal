@@ -15,27 +15,28 @@ impl fmt::Display for RuntimeError {
 
 impl From<std::io::Error> for RuntimeError {
     fn from(err: std::io::Error) -> RuntimeError {
-        RuntimeError { message: "SHIT".to_string() }
+        eprintln!("{:?}", err);
+        RuntimeError { message: "io error".to_string() }
     }
 }
 
 impl From<hyper::Error> for RuntimeError {
     fn from(err: hyper::Error) -> RuntimeError {
         eprintln!("{:?}", err);
-        RuntimeError { message: "SHIT".to_string() }
+        RuntimeError { message: "hyper request error".to_string() }
     }
 }
 
 impl From<hyper::http::Error> for RuntimeError {
     fn from(err: hyper::http::Error) -> RuntimeError {
         eprintln!("{:?}", err);
-        RuntimeError { message: "SHITsss".to_string() }
+        RuntimeError { message: "hyper http error".to_string() }
     }
 }
 
-impl From<reqwest::Error> for RuntimeError {
-    fn from(err: reqwest::Error) -> RuntimeError {
+impl From<serde_yaml::Error> for RuntimeError {
+    fn from(err: serde_yaml::Error) -> RuntimeError {
         eprintln!("{:?}", err);
-        RuntimeError { message: "SHITsss".to_string() }
+        RuntimeError { message: "Yaml error".to_string() }
     }
 }
