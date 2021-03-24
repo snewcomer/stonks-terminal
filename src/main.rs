@@ -6,7 +6,6 @@ use banner::BANNER;
 use config::ClientConfig;
 use crate::session::{Credentials, Mode, Session};
 use stonks_error::RuntimeError;
-use std::env;
 use clap::{App as ClapApp, Arg};
 
 #[tokio::main]
@@ -46,9 +45,24 @@ async fn run(mode: Mode) -> Result<(), RuntimeError> {
 
     let session = Session::new(mode);
 
-    // make request for request_token
+    // 1. make request for request_token
+    // https://apisb.etrade.com/docs/api/authorization/request_token.html
     let creds = Credentials::new(client_config.consumer_key.to_string(), client_config.consumer_secret.to_string());
-    let _ = session.request_token(&creds).await;
+    let request_token = session.request_token(&creds).await;
+
+    // 2. obtain verification code
+    // https://apisb.etrade.com/docs/api/authorization/authorize.html
+    if request_token.is_err() {
+        return Err(RuntimeError { message: "request_token failed".to_string() })
+    }
+
+    let request_token = request_token.unwrap();
+    let verification_code = session.verification_code(&creds, &request_token)?;
+
+    // 3. make request for authorization token
+    // https://apisb.etrade.com/docs/api/authorization/get_access_token.html
+    let oauth_access_token = session.access_token(&creds, &request_token, &verification_code).await;
+    dbg!(oauth_access_token);
 
     Ok(())
 }

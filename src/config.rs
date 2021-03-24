@@ -10,6 +10,9 @@ use std::{
 const REQUEST_TOKEN_URL_SANDBOX: &str = "https://api.etrade.com/oauth/request_token";
 const SANDBOX_REQUEST_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/request_token";
 
+const ACCESS_TOKEN_URL_SANDBOX: &str = "https://api.etrade.com/oauth/access_token";
+const SANDBOX_ACCESS_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/access_token";
+
 // const DEFAULT_PORT: u16 = 8888;
 const FILE_NAME: &str = "client.yml";
 const CONFIG_DIR: &str = ".config";
@@ -19,6 +22,8 @@ const TOKEN_CACHE_FILE: &str = ".stonks_terminal_token_cache.json";
 pub struct UrlConfig<'a> {
     pub request_token_url: &'a str,
     pub sandbox_request_token_url: &'a str,
+    pub access_token_url: &'a str,
+    pub sandbox_access_token_url: &'a str,
 }
 
 impl<'a> Default for UrlConfig<'a> {
@@ -26,8 +31,21 @@ impl<'a> Default for UrlConfig<'a> {
         Self {
             request_token_url: REQUEST_TOKEN_URL_SANDBOX,
             sandbox_request_token_url: SANDBOX_REQUEST_TOKEN_URL,
+            access_token_url: ACCESS_TOKEN_URL_SANDBOX,
+            sandbox_access_token_url: SANDBOX_ACCESS_TOKEN_URL,
         }
     }
+}
+
+impl<'a> UrlConfig<'a> {
+    pub fn authorize_url(&self, key: &String, token: &String) -> String {
+        format!(
+            "https://us.etrade.com/e/t/etws/authorize?key={}&token={}",
+            key,
+            token,
+       )
+    }
+
 }
 
 struct ConfigPaths {
@@ -39,7 +57,6 @@ struct ConfigPaths {
 pub struct ClientConfig {
     pub consumer_key: String,
     pub consumer_secret: String,
-    pub verification_code: Option<String>,
 }
 
 impl ClientConfig {
@@ -47,18 +64,24 @@ impl ClientConfig {
         Self {
             consumer_key: "".to_string(),
             consumer_secret: "".to_string(),
-            verification_code: None,
         }
     }
 
     pub fn load_config(&mut self) -> Result<(), RuntimeError> {
         let paths = self.get_or_build_paths()?;
         if paths.config_file_path.exists() {
+            println!("Loading keys from config");
             let config_string = fs::read_to_string(&paths.config_file_path)?;
             let config_yaml: ClientConfig = serde_yaml::from_str(&config_string)?;
 
-            self.consumer_key = config_yaml.consumer_key;
-            self.consumer_secret = config_yaml.consumer_secret;
+            self.consumer_key = config_yaml.consumer_key
+                .strip_suffix("\n")
+                .unwrap_or(&config_yaml.consumer_key)
+                .to_string();
+            self.consumer_secret = config_yaml.consumer_secret
+                .strip_suffix("\n")
+                .unwrap_or(&config_yaml.consumer_secret)
+                .to_string();
 
             Ok(())
         } else {
@@ -76,7 +99,6 @@ impl ClientConfig {
             let client_config = Self {
                 consumer_key,
                 consumer_secret,
-                verification_code: None,
             };
 
             let client_yaml = serde_yaml::to_string(&client_config)?;
@@ -85,13 +107,6 @@ impl ClientConfig {
 
             self.consumer_key = client_config.consumer_key.trim().to_string();
             self.consumer_secret = client_config.consumer_secret.trim().to_string();
-
-            // println!("3. {}", "Manually copy the verification code to your clipboard and paste here: ");
-            // let mut verification_code = String::new();
-            // stdin().read_line(&mut verification_code)?;
-            // self.verification_code = verification_code.trim().to_string();
-
-            // timestamp: Utc::today().with_timezone(&chrono_tz::US::Eastern).naive_local(),
 
             Ok(())
         }
@@ -130,6 +145,6 @@ impl ClientConfig {
 
         let mut key = String::new();
         stdin().read_line(&mut key)?;
-        Ok(key)
+        Ok(key.trim().to_owned())
     }
 }

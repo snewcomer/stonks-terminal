@@ -40,3 +40,10 @@ impl From<serde_yaml::Error> for RuntimeError {
         RuntimeError { message: "Yaml error".to_string() }
     }
 }
+
+impl From<serde_urlencoded::de::Error> for RuntimeError {
+    fn from(err: serde_urlencoded::de::Error) -> RuntimeError {
+        eprintln!("{:?}", err);
+        RuntimeError { message: "Yaml error".to_string() }
+    }
+}
