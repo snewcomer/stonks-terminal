@@ -51,20 +51,22 @@ pub enum Mode {
     Live,
 }
 
-pub struct Session {
+pub struct Session<T> {
     mode: Mode,
     urls: UrlConfig<'static>,
     client: HttpClient,
+    pub store: T,
 }
 
-impl Session {
-    pub fn new(mode: Mode) -> Self {
+impl<T> Session<T> {
+    pub fn new(mode: Mode, store: T) -> Self {
         let https = HttpsConnector::new();
         let client = Client::builder().build::<_, hyper::Body>(https);
         Self {
             mode,
             urls: UrlConfig::default(),
             client,
+            store,
         }
     }
 
@@ -105,9 +107,9 @@ impl Session {
 
         let body = self.send_request(uri, authorization_header).await;
         let creds: oauth_credentials::Credentials<Box<str>> = serde_urlencoded::from_bytes(&body)?;
-        let oauth_token_creds = creds.into();
+        let oauth_access_creds = creds.into();
 
-        Ok(oauth_token_creds)
+        Ok(oauth_access_creds)
     }
 
     async fn send_request(&self, uri: &str, authorization: String) -> Vec<u8> {
@@ -133,14 +135,13 @@ impl Session {
     }
 
     fn verify_code(&self, url: String) -> Result<String, RuntimeError> {
-        let msg = format!("Please visit and accept the license. {}\ninput verification code:\n", url,);
+        let msg = format!("Please visit and accept the license. \n{}\ninput verification code:\n", url,);
         std::io::stderr().write_all(msg.as_bytes())?;
 
         let mut key = String::new();
         stdin().read_line(&mut key)?;
 
         let result = key.trim().to_owned();
-        eprintln!("{}", result);
         Ok(result)
     }
 }
