@@ -1,5 +1,5 @@
 use std::fmt;
-use std::error::Error;
+// use std::error::Error;
 
 // Error strategy
 #[derive(Debug, PartialEq)]
@@ -45,5 +45,19 @@ impl From<serde_urlencoded::de::Error> for RuntimeError {
     fn from(err: serde_urlencoded::de::Error) -> RuntimeError {
         eprintln!("{:?}", err);
         RuntimeError { message: "Yaml error".to_string() }
+    }
+}
+
+impl From<crossterm::ErrorKind> for RuntimeError {
+    fn from(err: crossterm::ErrorKind) -> RuntimeError {
+        eprintln!("{:?}", err);
+        RuntimeError { message: "Yaml error".to_string() }
+    }
+}
+
+impl From<std::sync::mpsc::RecvError> for RuntimeError {
+    fn from(err: std::sync::mpsc::RecvError) -> RuntimeError {
+        eprintln!("{:?}", err);
+        RuntimeError { message: "mpsc error".to_string() }
     }
 }
