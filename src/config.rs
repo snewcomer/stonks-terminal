@@ -19,6 +19,20 @@ const CONFIG_DIR: &str = ".config";
 const APP_CONFIG_DIR: &str = "stonks-terminal";
 const TOKEN_CACHE_FILE: &str = ".stonks_terminal_token_cache.json";
 
+#[derive(Clone)]
+pub struct UserConfig {
+  pub path_to_config: Option<PathBuf>,
+}
+
+impl UserConfig {
+    pub fn new() -> Self {
+        Self {
+            path_to_config: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct UrlConfig<'a> {
     pub request_token_url: &'a str,
     pub sandbox_request_token_url: &'a str,

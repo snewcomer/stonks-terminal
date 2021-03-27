@@ -1,5 +1,6 @@
+use crate::store::{Store};
 use crate::stonks_error::RuntimeError;
-use crate::config::UrlConfig;
+use crate::config::{ClientConfig, UrlConfig};
 // use secstr::SecUtf8;
 // use serde::ser::Serialize;
 use http::header::{AUTHORIZATION};
@@ -9,6 +10,7 @@ use hyper::{
 };
 use hyper_tls::HttpsConnector;
 use std::io::{stdin, Write};
+use log::debug;
 
 type HttpClient = Client<HttpsConnector<HttpConnector<GaiResolver>>, hyper::Body>;
 
@@ -45,12 +47,13 @@ where
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Mode {
     Sandbox,
     Live,
 }
 
+#[derive(Debug, Clone)]
 pub struct Session<T> {
     mode: Mode,
     urls: UrlConfig<'static>,
@@ -58,7 +61,9 @@ pub struct Session<T> {
     pub store: T,
 }
 
-impl<T> Session<T> {
+impl<T> Session<T>
+where T: Store
+{
     pub fn new(mode: Mode, store: T) -> Self {
         let https = HttpsConnector::new();
         let client = Client::builder().build::<_, hyper::Body>(https);
@@ -68,6 +73,35 @@ impl<T> Session<T> {
             client,
             store,
         }
+    }
+
+    pub async fn full_access_flow(&mut self, client_config: ClientConfig) -> Result<Credentials, RuntimeError> {
+        let creds = Credentials::new(client_config.consumer_key.to_string(), client_config.consumer_secret.to_string());
+        let request_token_creds = self.request_token(&creds).await;
+
+        // 2. obtain verification code
+        // lives for 5 minutes
+        // https://apisb.etrade.com/docs/api/authorization/authorize.html
+        if request_token_creds.is_err() {
+            return Err(RuntimeError { message: "request_token failed".to_string() })
+        }
+
+        let request_token_creds = request_token_creds.unwrap();
+        let verification_code = self.verification_code(&creds, &request_token_creds)?;
+        self.store.set_verification_code(verification_code.to_owned());
+
+        // 3. make request for authorization token
+        // expires at midnight Eastern Time
+        // These should be used and passed in the header of subsequent requests
+        // https://apisb.etrade.com/docs/api/authorization/get_access_token.html
+        let oauth_access_creds = self.access_token(&creds, &request_token_creds, &verification_code).await;
+        let oauth_access_creds = oauth_access_creds.unwrap();
+
+        // finished oauth process
+        self.store.put(oauth_access_creds.key.to_string(), oauth_access_creds.secret.to_string());
+        debug!("OAuth saved to in memory store {}", &oauth_access_creds.key);
+
+        Ok(oauth_access_creds)
     }
 
     // only valid for 5 minutes

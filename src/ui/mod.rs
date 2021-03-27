@@ -1,7 +1,7 @@
 pub mod event;
 pub mod key;
 
-use crate::app::{App, BANNER, MAJOR_INDICES};
+use crate::app::{App, MAJOR_INDICES};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -11,7 +11,7 @@ use tui::{
     Frame,
 };
 
-pub fn draw_main<B>(f: &mut Frame<B>, app: App)
+pub fn draw_main<B>(f: &mut Frame<B>, app: &App)
     where B: Backend,
           {
               let parent_layout = Layout::default()
@@ -51,28 +51,22 @@ pub fn draw_splash<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     let style = Style::default().fg(Color::Yellow);
     let welcome = Block::default()
         .title(Span::styled(
-            "Welcome!",
+            "Stats",
             style,
         ))
         .borders(Borders::ALL)
         .border_style(style);
     f.render_widget(welcome, layout_chunk);
 
-    // Banner text with correct styling
-    let mut top_text = Text::from(BANNER);
-    top_text.patch_style(Style::default().fg(Color::Yellow));
+    // // Banner text with correct styling
+    // let mut top_text = Text::from(BANNER);
+    // top_text.patch_style(Style::default().fg(Color::Yellow));
 
-    let bottom_text_raw = format!(
-        "{}",
-        "\nPlease report any bugs or missing features to https://github.com/snewcomer/stonks-terminal\n\n",
-        );
-    let bottom_text = Text::from(bottom_text_raw.as_str());
-
-    // Contains the banner
-    let top_text = Paragraph::new(top_text)
-        .style(Style::default().fg(Color::Yellow))
-        .block(Block::default());
-    f.render_widget(top_text, chunks[0]);
+    // // Contains the banner
+    // let top_text = Paragraph::new(top_text)
+    //     .style(Style::default().fg(Color::Yellow))
+    //     .block(Block::default());
+    // f.render_widget(top_text, chunks[0]);
 }
 
 pub fn draw_portfolio_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
