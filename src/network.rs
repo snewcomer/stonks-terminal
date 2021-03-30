@@ -1,4 +1,4 @@
-use crate::app::{ActiveBlock, App, MajorIndices, RouteId, SearchType, SearchResult, SearchResultType, SelectedTicker};
+use crate::app::{ActiveBlock, App, WatchList, RouteId, SearchType, SearchResult, SearchResultType, SelectedTicker};
 use crate::clients::etrade::{Etrade, EtradeTokenInfo};
 use crate::config::ClientConfig;
 use crate::session::Session;
@@ -39,6 +39,7 @@ pub enum IoEvent {
     GetDowJones,
     GetNasdaq,
     GetSandP,
+    GetPortfolio,
     GetUser,
     GetCurrentSavedTickers(Option<u32>),
     CurrentUserSavedTickersContains(Vec<String>),
@@ -93,6 +94,9 @@ where T: Store {
             IoEvent::GetNasdaq => {
                 self.get_ticker("ndaq".to_string()).await;
             }
+            IoEvent::GetPortfolio => {
+                self.get_portfolio().await;
+            }
             IoEvent::GetSearchResults(search_term) => {
                 self.get_search_results(search_term).await;
             }
@@ -142,8 +146,8 @@ where T: Store {
         match self.etrade.current_user_saved_tickers_contains(&ids).await {
             Ok(is_saved_vec) => {
                 let mut app = self.app.lock().await;
-                for id in ids.iter() {
-                    if let Some(is_liked) = is_saved_vec.get(id) {
+                for (i, id) in ids.iter().enumerate() {
+                    if let Some(_is_liked) = is_saved_vec.get(i) {
                         app.liked_ticker_ids_set.insert(id.to_string());
                     } else {
                         // The song is not liked, so check if it should be removed
@@ -278,12 +282,27 @@ where T: Store {
                 let mut app = self.app.lock().await;
 
                 app.selected_ticker = Some(selected_ticker);
-                app.push_navigation_stack(RouteId::Ticker, ActiveBlock::Ticker);
+                app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
             }
             Err(e) => {
                 self.handle_error(anyhow!(e)).await;
             }
         }
+    }
+
+    async fn get_portfolio(&mut self) {
+        // for sidebar portfolio items
+        // match self.etrade.portfolio().await {
+        //     Ok(portfolio_tickers) => {
+                let mut app = self.app.lock().await;
+
+                // app.portfolio_tickers = Some(portfolio_tickers);
+                app.selected_ticker_index = Some(0);
+            // }
+            // Err(e) => {
+            //     self.handle_error(anyhow!(e)).await;
+            // }
+        // }
     }
 
     async fn refresh_authentication(&mut self) {

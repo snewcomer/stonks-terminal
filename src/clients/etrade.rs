@@ -2,7 +2,6 @@ use chrono::prelude::*;
 use derive_builder::Builder;
 use crate::app::{Ticker, SearchType, User};
 use crate::stonks_error::RuntimeError;
-use std::collections::HashSet;
 
 pub type ClientResult<T> = Result<T, RuntimeError>;
 
@@ -22,6 +21,10 @@ impl Etrade {
 
 impl Etrade {
     pub async fn ticker(&self, symbol: &str) -> ClientResult<Ticker> {
+        todo!();
+    }
+
+    pub async fn portfolio(&self) -> ClientResult<Vec<Ticker>> {
         todo!();
     }
 
@@ -45,7 +48,7 @@ impl Etrade {
         todo!();
     }
 
-    pub async fn current_user_saved_tickers_contains(&self, ticker_symbols: &Vec<String>) -> ClientResult<HashSet<String>> {
+    pub async fn current_user_saved_tickers_contains(&self, ticker_symbols: &Vec<String>) -> ClientResult<Vec<String>> {
         todo!();
     }
 }

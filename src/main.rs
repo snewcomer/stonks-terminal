@@ -19,12 +19,12 @@ use clap::{App as ClapApp, Arg};
 // use chrono::prelude::*;
 // use chrono::Duration;
 use crossterm::{
-  // cursor::MoveTo,
+  cursor::MoveTo,
   event::{DisableMouseCapture, EnableMouseCapture},
   execute,
   style::Print,
   terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-  // ExecutableCommand,
+  ExecutableCommand,
 };
 use std::{
     sync::Arc,
@@ -37,7 +37,7 @@ use tui::{
   backend::{Backend, CrosstermBackend},
   Terminal,
 };
-use app::App;
+use app::{ActiveBlock, App};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -152,9 +152,23 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<(), RuntimeError> {
     terminal.hide_cursor()?;
 
     let events = Events::new();
+    let mut is_first_render = true;
 
     loop {
         let mut app = app.lock().await;
+        let current_route = app.get_current_route();
+        if current_route.active_block == ActiveBlock::Input {
+            terminal.show_cursor()?;
+
+            // Put the cursor back inside the input box
+            terminal.backend_mut().execute(MoveTo(
+              2 + app.input_cursor_position,
+              2,
+            ))?;
+        } else {
+            terminal.hide_cursor()?;
+        }
+
         terminal.draw(|mut f| ui::draw_main(&mut f, &app))?;
 
         let mut now = utils::midnight_eastern(0);
@@ -171,11 +185,25 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<(), RuntimeError> {
                 if key == Key::Ctrl('c') {
                     break;
                 }
+
+                let current_active_block = app.get_current_route().active_block;
+                if current_active_block == ActiveBlock::Input {
+                    ui::handlers::input_handler(key, &mut app);
+                } else {
+                    ui::handlers::handle_app(key, &mut app);
+                }
             }
             Event::Tick => {}
         }
+
+        if is_first_render {
+          app.dispatch(IoEvent::GetPortfolio);
+          is_first_render = false;
+        }
+
     }
 
+    terminal.show_cursor()?;
     close_application()?;
 
     Ok(())

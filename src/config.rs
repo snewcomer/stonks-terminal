@@ -1,10 +1,12 @@
 use crate::stonks_error::RuntimeError;
+use crate::ui::key::Key;
 use serde::{Serialize, Deserialize};
 use std::{
     fs,
     io::{stdin, Write},
     path::{Path, PathBuf}
 };
+use tui::style::{Color};
 // use chrono::Utc;
 
 const REQUEST_TOKEN_URL_SANDBOX: &str = "https://api.etrade.com/oauth/request_token";
@@ -20,14 +22,67 @@ const APP_CONFIG_DIR: &str = "stonks-terminal";
 const TOKEN_CACHE_FILE: &str = ".stonks_terminal_token_cache.json";
 
 #[derive(Clone)]
+pub struct KeyBindings {
+  pub back: Key,
+  pub next_page: Key,
+  pub previous_page: Key,
+  pub search: Key,
+  pub submit: Key,
+  pub basic_view: Key,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Theme {
+  pub active: Color,
+  pub banner: Color,
+  pub error_border: Color,
+  pub error_text: Color,
+  pub hint: Color,
+  pub hovered: Color,
+  pub inactive: Color,
+  pub selected: Color,
+  pub text: Color,
+  pub header: Color,
+}
+
+impl Default for Theme {
+  fn default() -> Self {
+    Theme {
+      active: Color::Cyan,
+      banner: Color::LightCyan,
+      error_border: Color::Red,
+      error_text: Color::LightRed,
+      hint: Color::Yellow,
+      hovered: Color::Magenta,
+      inactive: Color::Gray,
+      selected: Color::LightCyan,
+      text: Color::Reset,
+      header: Color::Reset,
+    }
+  }
+}
+
+#[derive(Clone)]
 pub struct UserConfig {
-  pub path_to_config: Option<PathBuf>,
+    pub path_to_config: Option<PathBuf>,
+    pub keys: KeyBindings,
+    pub theme: Theme,
 }
 
 impl UserConfig {
     pub fn new() -> Self {
         Self {
             path_to_config: None,
+            theme: Theme::default(),
+            keys: KeyBindings {
+                back: Key::Char('q'),
+                next_page: Key::Ctrl('d'),
+                previous_page: Key::Ctrl('u'),
+                search: Key::Char('/'),
+                submit: Key::Enter,
+                basic_view: Key::Char('B'),
+            },
+
         }
     }
 }
@@ -57,7 +112,7 @@ impl<'a> UrlConfig<'a> {
             "https://us.etrade.com/e/t/etws/authorize?key={}&token={}",
             key,
             token,
-       )
+            )
     }
 
 }
@@ -102,7 +157,7 @@ impl ClientConfig {
             println!(
                 "Config will be saved to {}",
                 paths.config_file_path.display()
-            );
+                );
 
             println!("{}", "Lets get setup!");
 

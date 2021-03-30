@@ -19,7 +19,7 @@ impl Events {
         let event_sx = sx.clone();
         thread::spawn(move || {
             loop {
-                if event::poll(Duration::from_millis(100)).unwrap() {
+                if event::poll(Duration::from_millis(75)).unwrap() {
                     if let event::Event::Key(key) = event::read().unwrap() {
                         let key = Key::from(key);
 

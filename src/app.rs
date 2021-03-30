@@ -2,8 +2,8 @@ use crate::config::UserConfig;
 use crate::network::IoEvent;
 use std::sync::mpsc::Sender;
 use std::{
-    collections::HashSet,
     time::{Instant, SystemTime},
+    collections::HashSet,
 };
 use chrono::prelude::*;
 use chrono::Duration;
@@ -25,7 +25,7 @@ pub struct Route {
 const DEFAULT_ROUTE: Route = Route {
     id: RouteId::Home,
     active_block: ActiveBlock::Empty,
-    hovered_block: ActiveBlock::RecentlySearched,
+    hovered_block: ActiveBlock::WatchList,
 };
 
 #[derive(Clone, PartialEq, Debug)]
@@ -36,31 +36,32 @@ pub enum RouteId {
     Home,
     RecentlySearched,
     Search,
-    Ticker,
+    TickerDetail,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ActiveBlock {
     Analysis,
+    Dialog,
     Empty,
     Error,
     HelpMenu,
     Home,
     Input,
-    MajorIndices,
+    WatchList,
     Portfolio,
     RecentlySearched,
-    SearchResultsBlock,
+    SearchResults,
     BasicView,
-    Ticker,
+    TickerDetail,
 }
 
 #[derive(Clone)]
-pub struct MajorIndices {
+pub struct WatchList {
     pub selected_index: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Ticker {
     pub symbol: String,
 }
@@ -72,7 +73,7 @@ pub enum SearchType {
     OptionChain, // not Option b/c language keyword
 }
 
-pub enum SearchResultsBlock {
+pub enum SearchResults {
     TradingVolume,
     Eps,
     Empty
@@ -82,8 +83,8 @@ pub struct SearchResult {
     pub tickers: Option<Vec<Ticker>>,
     pub option_chains: Option<Vec<OptionChain>>,
     pub selected_ticker_index: Option<usize>,
-    pub hovered_block: SearchResultsBlock,
-    pub selected_block: SearchResultsBlock,
+    pub hovered_block: SearchResults,
+    pub selected_block: SearchResults,
 }
 
 impl SearchResult {
@@ -92,8 +93,8 @@ impl SearchResult {
             tickers: Some(tickers),
             option_chains: None,
             selected_ticker_index: None,
-            hovered_block: SearchResultsBlock::TradingVolume,
-            selected_block: SearchResultsBlock::Empty,
+            hovered_block: SearchResults::TradingVolume,
+            selected_block: SearchResults::Empty,
         }
     }
 }
@@ -115,6 +116,7 @@ pub struct SelectedOptionChain {
     pub selected_index: usize,
 }
 
+// Watch Lists
 #[derive(Clone)]
 pub struct Library {
     pub selected_index: usize,
@@ -126,7 +128,7 @@ pub struct User {}
 
 pub struct App {
     pub user_config: UserConfig,
-    pub major_indices: MajorIndices,
+    pub major_indices: WatchList,
     navigation_stack: Vec<Route>,
     pub api_error: String,
     // Inputs:
@@ -141,8 +143,12 @@ pub struct App {
     pub liked_ticker_ids_set: HashSet<String>,
     pub saved_ticker_ids_set: HashSet<String>,
 
-    pub library: Library,
+    pub active_ticker_index: Option<usize>,
+    pub selected_ticker_index: Option<usize>,
     pub selected_ticker: Option<SelectedTicker>,
+
+    pub library: Library,
+    pub portfolio_tickers: Option<Vec<Ticker>>,
 
     pub large_search_limit: u32,
     pub search_results: SearchResult,
@@ -168,15 +174,21 @@ impl Default for App {
             user_config: UserConfig::new(),
             recently_searched: Default::default(),
             size: Rect::default(),
-            major_indices: MajorIndices {
+            major_indices: WatchList {
                 selected_index: 0,
             },
+
             library: Library {
                 selected_index: 0,
                 saved_tickers: vec![],
                 saved_option_chains: vec![],
             },
+
+            portfolio_tickers: None,
+
             selected_ticker: None,
+            active_ticker_index: None,
+            selected_ticker_index: None,
             navigation_stack: vec![DEFAULT_ROUTE],
             large_search_limit: 20,
             small_search_limit: 4,
@@ -187,8 +199,8 @@ impl Default for App {
             liked_ticker_ids_set: HashSet::new(),
             saved_ticker_ids_set: HashSet::new(),
             search_results: SearchResult {
-                hovered_block: SearchResultsBlock::TradingVolume,
-                selected_block: SearchResultsBlock::TradingVolume,
+                hovered_block: SearchResults::TradingVolume,
+                selected_block: SearchResults::TradingVolume,
                 selected_ticker_index: None,
                 tickers: None,
                 option_chains: None,
@@ -253,6 +265,28 @@ impl App {
 
     fn get_current_route_mut(&mut self) -> &mut Route {
         self.navigation_stack.last_mut().unwrap()
+    }
+
+    pub fn set_current_route_state(
+        &mut self,
+        active_block: Option<ActiveBlock>,
+        hovered_block: Option<ActiveBlock>,
+    ) {
+        let mut current_route = self.get_current_route_mut();
+        if let Some(active_block) = active_block {
+            current_route.active_block = active_block;
+        }
+        if let Some(hovered_block) = hovered_block {
+            current_route.hovered_block = hovered_block;
+        }
+    }
+
+    pub fn pop_navigation_stack(&mut self) -> Option<Route> {
+        if self.navigation_stack.len() == 1 {
+          None
+        } else {
+          self.navigation_stack.pop()
+        }
     }
 
     pub fn handle_error(&mut self, e: anyhow::Error) {

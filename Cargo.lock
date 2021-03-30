@@ -1230,6 +1230,7 @@ dependencies = [
  "serde_yaml",
  "tokio",
  "tui",
+ "unicode-width",
 ]
 
 [[package]]
