@@ -111,7 +111,7 @@ async fn run(mode: Mode) -> Result<(), RuntimeError> {
     let etrade_token_expiry = utils::midnight_eastern(0);
 
     // network APIs interface
-    let etrade = Etrade::new();
+    let etrade = Etrade::new(client_config.clone());
 
     // Initialise app state
     let app = Arc::new(Mutex::new(App::new(

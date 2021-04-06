@@ -272,7 +272,7 @@ where T: Store {
     }
 
     async fn get_ticker(&mut self, ticker_id: String) {
-        match self.etrade.ticker(&ticker_id).await {
+        match self.etrade.ticker(&self.session, &ticker_id).await {
             Ok(ticker) => {
                 let selected_ticker = SelectedTicker {
                     ticker,

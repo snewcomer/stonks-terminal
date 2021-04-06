@@ -56,7 +56,7 @@ pub enum Mode {
 #[derive(Debug, Clone)]
 pub struct Session<T> {
     mode: Mode,
-    urls: UrlConfig<'static>,
+    pub urls: UrlConfig<'static>,
     client: HttpClient,
     pub store: T,
 }
@@ -92,13 +92,13 @@ where T: Store
 
         // 3. make request for authorization token
         // expires at midnight Eastern Time
-        // These should be used and passed in the header of subsequent requests
+        // These should be used and passed in the header of subsequent requests for tickers
         // https://apisb.etrade.com/docs/api/authorization/get_access_token.html
         let oauth_access_creds = self.access_token(&creds, &request_token_creds, &verification_code).await;
         let oauth_access_creds = oauth_access_creds.unwrap();
 
         // finished oauth process
-        self.store.put(oauth_access_creds.key.to_string(), oauth_access_creds.secret.to_string());
+        self.store.put(client_config.consumer_key.to_string(), oauth_access_creds.clone());
         debug!("OAuth saved to in memory store {}", &oauth_access_creds.key);
 
         Ok(oauth_access_creds)
@@ -129,13 +129,13 @@ where T: Store
     }
 
     // https://apisb.etrade.com/docs/api/authorization/authorize.html
-    pub async fn access_token(&self, consumer: &Credentials, request_token: &Credentials, verification_code: &String) -> Result<Credentials, RuntimeError> {
+    pub async fn access_token(&self, consumer: &Credentials, request_token_creds: &Credentials, verification_code: &String) -> Result<Credentials, RuntimeError> {
         let uri = match self.mode {
             Mode::Sandbox => self.urls.sandbox_access_token_url,
             Mode::Live => self.urls.access_token_url,
         };
         let authorization_header = oauth::Builder::<_, _>::new(consumer.clone().into(), oauth::HmacSha1)
-            .token(Some(request_token.clone().into()))
+            .token(Some(request_token_creds.clone().into()))
             .verifier(Some(verification_code.as_ref()))
             .get(&uri, &());
 
@@ -146,7 +146,7 @@ where T: Store
         Ok(oauth_access_creds)
     }
 
-    async fn send_request(&self, uri: &str, authorization: String) -> Vec<u8> {
+    pub async fn send_request(&self, uri: &str, authorization: String) -> Vec<u8> {
         let req = Request::builder()
             .method(Method::GET)
             .uri(uri)

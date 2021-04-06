@@ -7,6 +7,7 @@ use std::{
 };
 use chrono::prelude::*;
 use chrono::Duration;
+use serde::{Serialize, Deserialize};
 use tui::layout::Rect;
 
 pub const MAJOR_INDICES: [&str; 3] = [
@@ -61,7 +62,7 @@ pub struct WatchList {
     pub selected_index: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Ticker {
     pub symbol: String,
 }

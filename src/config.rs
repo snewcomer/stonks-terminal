@@ -112,7 +112,14 @@ impl<'a> UrlConfig<'a> {
             "https://us.etrade.com/e/t/etws/authorize?key={}&token={}",
             key,
             token,
-            )
+        )
+    }
+
+    pub fn etrade_ticker_url(&self, symbol: &str) -> String {
+        format!(
+            "https://api.etrade.com/v1/market/quote/{}",
+            symbol,
+        )
     }
 
 }
