@@ -35,19 +35,19 @@ pub fn handler(key: Key, app: &mut App) {
         // `library` should probably be an array of structs with enums rather than just using indexes
         // like this
         Key::Enter => match app.library.selected_index {
-            // DJIA
+            // Nasdaq
             0 => {
+                app.dispatch(IoEvent::GetNasdaq);
+                app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
+            }
+            // DJIA
+            1 => {
                 app.dispatch(IoEvent::GetDowJones);
                 app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
             }
             // S&P
-            1 => {
-                app.dispatch(IoEvent::GetSandP);
-                app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
-            }
-            // Nasdaq
             2 => {
-                app.dispatch(IoEvent::GetNasdaq);
+                app.dispatch(IoEvent::GetSandP);
                 app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
             }
             // This is required because Rust can't tell if this pattern in exhaustive

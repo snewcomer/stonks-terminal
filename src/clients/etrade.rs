@@ -41,7 +41,7 @@ impl Etrade {
     }
 
     pub async fn ticker<T: Store>(&self, session: &Session<T>, symbol: &str) -> ClientResult<Ticker> {
-        let uri = session.urls.etrade_ticker_url(symbol);
+        let uri = session.urls.etrade_ticker_url(symbol, &session.mode);
         let authorization_header = self.build_authorization_header(&uri, &session);
 
         let body = session.send_request(&uri, authorization_header).await;

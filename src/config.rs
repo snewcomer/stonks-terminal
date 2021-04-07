@@ -1,4 +1,5 @@
 use crate::stonks_error::RuntimeError;
+use crate::session::Mode;
 use crate::ui::key::Key;
 use serde::{Serialize, Deserialize};
 use std::{
@@ -7,6 +8,7 @@ use std::{
     path::{Path, PathBuf}
 };
 use tui::style::{Color};
+use log::debug;
 // use chrono::Utc;
 
 const REQUEST_TOKEN_URL_SANDBOX: &str = "https://api.etrade.com/oauth/request_token";
@@ -14,6 +16,9 @@ const SANDBOX_REQUEST_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/request_
 
 const ACCESS_TOKEN_URL_SANDBOX: &str = "https://api.etrade.com/oauth/access_token";
 const SANDBOX_ACCESS_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/access_token";
+
+const QUOTE_URL: &str = " https://api.etrade.com/v1/market/quote";
+const SANDBOX_QUOTE_URL: &str = " https://apisb.etrade.com/v1/market/quote";
 
 // const DEFAULT_PORT: u16 = 8888;
 const FILE_NAME: &str = "client.yml";
@@ -93,6 +98,8 @@ pub struct UrlConfig<'a> {
     pub sandbox_request_token_url: &'a str,
     pub access_token_url: &'a str,
     pub sandbox_access_token_url: &'a str,
+    pub quote_url: &'a str,
+    pub sandbox_quote_url: &'a str,
 }
 
 impl<'a> Default for UrlConfig<'a> {
@@ -102,6 +109,8 @@ impl<'a> Default for UrlConfig<'a> {
             sandbox_request_token_url: SANDBOX_REQUEST_TOKEN_URL,
             access_token_url: ACCESS_TOKEN_URL_SANDBOX,
             sandbox_access_token_url: SANDBOX_ACCESS_TOKEN_URL,
+            quote_url: QUOTE_URL,
+            sandbox_quote_url: SANDBOX_QUOTE_URL,
         }
     }
 }
@@ -115,9 +124,14 @@ impl<'a> UrlConfig<'a> {
         )
     }
 
-    pub fn etrade_ticker_url(&self, symbol: &str) -> String {
+    pub fn etrade_ticker_url(&self, symbol: &str, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => self.sandbox_quote_url,
+            Mode::Live => self.quote_url,
+        };
         format!(
-            "https://api.etrade.com/v1/market/quote/{}",
+            "{}/{}",
+            url,
             symbol,
         )
     }
@@ -146,7 +160,8 @@ impl ClientConfig {
     pub fn load_config(&mut self) -> Result<(), RuntimeError> {
         let paths = self.get_or_build_paths()?;
         if paths.config_file_path.exists() {
-            println!("Loading keys from config");
+            debug!("Loading keys from config");
+
             let config_string = fs::read_to_string(&paths.config_file_path)?;
             let config_yaml: ClientConfig = serde_yaml::from_str(&config_string)?;
 
@@ -161,10 +176,7 @@ impl ClientConfig {
 
             Ok(())
         } else {
-            println!(
-                "Config will be saved to {}",
-                paths.config_file_path.display()
-                );
+            debug!("Config will be saved to {}", paths.config_file_path.display());
 
             println!("{}", "Lets get setup!");
 

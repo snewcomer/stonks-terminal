@@ -3,34 +3,11 @@ use crate::clients::etrade::{Etrade, EtradeTokenInfo};
 use crate::config::ClientConfig;
 use crate::session::Session;
 use crate::store::Store;
-use crate::utils;
 use anyhow::anyhow;
-use chrono::prelude::*;
-// use retrade::{
-//   client::Etrade,
-//   model::{
-//     album::SimplifiedAlbum,
-//     artist::FullArtist,
-//     offset::for_position,
-//     page::Page,
-//     playlist::{Playlistticker, SimplifiedPlaylist},
-//     recommend::Recommendations,
-//     search::SearchResult,
-//     show::SimplifiedShow,
-//     ticker::Ticker,
-//     PlayingItem,
-//   },
-//   oauth2::{EtradeClientCredentials, EtradeOAuth, TokenInfo},
-//   senum::{AdditionalType, Country, RepeatState, SearchType},
-//   util::get_token,
-// };
-use serde_json::{map::Map, Value};
 use std::{
     sync::Arc,
-    time::{Duration, Instant, SystemTime},
 };
 use tokio::sync::Mutex;
-use tokio::try_join;
 
 #[derive(Debug)]
 pub enum IoEvent {
@@ -89,7 +66,7 @@ where T: Store {
                 self.get_ticker("dji".to_string()).await;
             }
             IoEvent::GetSandP => {
-                self.get_ticker("inx".to_string()).await;
+                self.get_ticker("gspc".to_string()).await;
             }
             IoEvent::GetNasdaq => {
                 self.get_ticker("ndaq".to_string()).await;
@@ -192,9 +169,7 @@ where T: Store {
                 let mut app = self.app.lock().await;
 
                 saved_tickers.iter().for_each(|item| {
-                    if let ticker_id = &item.symbol {
-                        app.liked_ticker_ids_set.insert(ticker_id.to_string());
-                    }
+                    app.liked_ticker_ids_set.insert(item.symbol.to_string());
                 });
 
                 app.library.saved_tickers = saved_tickers;

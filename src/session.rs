@@ -55,7 +55,7 @@ pub enum Mode {
 
 #[derive(Debug, Clone)]
 pub struct Session<T> {
-    mode: Mode,
+    pub mode: Mode,
     pub urls: UrlConfig<'static>,
     client: HttpClient,
     pub store: T,
@@ -75,7 +75,7 @@ where T: Store
         }
     }
 
-    pub async fn full_access_flow(&mut self, client_config: ClientConfig) -> Result<Credentials, RuntimeError> {
+    pub async fn full_access_flow(&mut self, client_config: ClientConfig) -> Result<(), RuntimeError> {
         let creds = Credentials::new(client_config.consumer_key.to_string(), client_config.consumer_secret.to_string());
         let request_token_creds = self.request_token(&creds).await;
 
@@ -98,10 +98,11 @@ where T: Store
         let oauth_access_creds = oauth_access_creds.unwrap();
 
         // finished oauth process
-        self.store.put(client_config.consumer_key.to_string(), oauth_access_creds.clone());
-        debug!("OAuth saved to in memory store {}", &oauth_access_creds.key);
+        self.store.put(creds.key.to_owned(), oauth_access_creds.clone());
 
-        Ok(oauth_access_creds)
+        println!("OAuth saved to in memory store: consumer key {} | oauth key {}", &creds.key, &oauth_access_creds.key);
+
+        Ok(())
     }
 
     // only valid for 5 minutes
@@ -147,6 +148,7 @@ where T: Store
     }
 
     pub async fn send_request(&self, uri: &str, authorization: String) -> Vec<u8> {
+        println!("{}", uri);
         let req = Request::builder()
             .method(Method::GET)
             .uri(uri)
@@ -156,9 +158,11 @@ where T: Store
         let req = self.client.request(req.unwrap());
         let resp = req.await.unwrap();
 
+        println!("{}", resp.status());
         if resp.status().as_u16() / 100 == 2 {
             hyper::body::to_bytes(resp.into_body()).await.unwrap().to_vec()
         } else {
+            println!("error {:?}", resp);
             vec![]
         }
 

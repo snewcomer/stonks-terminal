@@ -11,8 +11,8 @@ use serde::{Serialize, Deserialize};
 use tui::layout::Rect;
 
 pub const MAJOR_INDICES: [&str; 3] = [
-    "DJIA",
     "Nasdaq",
+    "DJIA",
     "S&P",
 ];
 
