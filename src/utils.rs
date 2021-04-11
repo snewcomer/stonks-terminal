@@ -4,6 +4,7 @@ use chrono::Duration;
 // today midnight auth_token expires
 // convert to midnight
 pub fn midnight_eastern(days: i64) -> DateTime<Utc> {
+    // get us to EST time
     let mut now = Utc::now() - Duration::hours(5);
     // today midnight auth_token expires
     // convert to midnight

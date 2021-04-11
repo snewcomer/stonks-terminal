@@ -138,9 +138,10 @@ impl<'a> UrlConfig<'a> {
 
 }
 
-struct ConfigPaths {
-    config_file_path: PathBuf,
-    token_cache_path: PathBuf,
+#[derive(Clone, Debug)]
+pub struct ConfigPaths {
+    pub config_file_path: PathBuf,
+    pub token_cache_path: PathBuf,
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -157,7 +158,7 @@ impl ClientConfig {
         }
     }
 
-    pub fn load_config(&mut self) -> Result<(), RuntimeError> {
+    pub fn load_config(&mut self) -> Result<ConfigPaths, RuntimeError> {
         let paths = self.get_or_build_paths()?;
         if paths.config_file_path.exists() {
             debug!("Loading keys from config");
@@ -173,8 +174,6 @@ impl ClientConfig {
                 .strip_suffix("\n")
                 .unwrap_or(&config_yaml.consumer_secret)
                 .to_string();
-
-            Ok(())
         } else {
             debug!("Config will be saved to {}", paths.config_file_path.display());
 
@@ -195,9 +194,9 @@ impl ClientConfig {
 
             self.consumer_key = client_config.consumer_key.trim().to_string();
             self.consumer_secret = client_config.consumer_secret.trim().to_string();
-
-            Ok(())
         }
+
+        Ok(paths)
     }
 
     fn get_or_build_paths(&self) -> Result<ConfigPaths, RuntimeError> {

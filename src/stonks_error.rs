@@ -41,6 +41,13 @@ impl From<serde_yaml::Error> for RuntimeError {
     }
 }
 
+impl From<serde_json::Error> for RuntimeError {
+    fn from(err: serde_json::Error) -> RuntimeError {
+        eprintln!("{:?}", err);
+        RuntimeError { message: "JSON error".to_string() }
+    }
+}
+
 impl From<serde_urlencoded::de::Error> for RuntimeError {
     fn from(err: serde_urlencoded::de::Error) -> RuntimeError {
         eprintln!("{:?}", err);

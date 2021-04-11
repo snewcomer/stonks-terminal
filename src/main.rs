@@ -16,8 +16,6 @@ use crate::network::{Network, IoEvent};
 use std::sync::mpsc::Receiver;
 use stonks_error::RuntimeError;
 use clap::{App as ClapApp, Arg};
-// use chrono::prelude::*;
-// use chrono::Duration;
 use crossterm::{
   cursor::MoveTo,
   event::{DisableMouseCapture, EnableMouseCapture},
@@ -70,21 +68,23 @@ async fn main() -> Result<(), RuntimeError> {
 async fn run(mode: Mode) -> Result<(), RuntimeError> {
     let mut client_config = ClientConfig::new();
     // ask user for configuration details
-    let _ = client_config.load_config()?;
+    let config_paths = client_config.load_config()?;
     let user_config = UserConfig::new();
 
     env_logger::init();
 
     debug!("Request token in flight for {:?} mode", mode);
 
-    let mut session = Session::new(mode, AuthInMemoryStore::new());
+    let mut session = Session::new(mode, AuthInMemoryStore::new(), config_paths);
 
-    // get consumer and access tokens
-    session.full_access_flow(client_config.clone()).await?;
+    // check if we have a non expired access token
+    let etrade_token_expiry = utils::midnight_eastern(1);
+    if session.expired_access_token() {
+        // get consumer and access tokens
+        session.full_access_flow(client_config.clone()).await?;
+    }
 
     let (sync_io_tx, sync_io_rx) = std::sync::mpsc::channel::<IoEvent>();
-
-    let etrade_token_expiry = utils::midnight_eastern(0);
 
     // network APIs interface
     let etrade = Etrade::new(client_config.clone());
@@ -103,7 +103,7 @@ async fn run(mode: Mode) -> Result<(), RuntimeError> {
         start_tokio(sync_io_rx, &mut network);
     });
 
-    let _ = start_ui(&cloned_app).await;
+    start_ui(&cloned_app).await?;
 
     Ok(())
 }
@@ -147,12 +147,12 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<(), RuntimeError> {
 
         terminal.draw(|mut f| ui::draw_main(&mut f, &app))?;
 
-        let mut now = utils::midnight_eastern(0);
+        let mut midnight = utils::midnight_eastern(1);
         // Handle authentication refresh
-        if now < app.etrade_token_expiry {
+        if midnight < app.etrade_token_expiry {
             // reset to tomorrow
-            now = utils::midnight_eastern(1);
-            app.etrade_token_expiry = now;
+            midnight = utils::midnight_eastern(1);
+            app.etrade_token_expiry = midnight;
             app.dispatch(IoEvent::RefreshAuthentication);
         }
 

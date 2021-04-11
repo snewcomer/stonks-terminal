@@ -1,21 +1,26 @@
+use crate::utils;
 use crate::store::{Store};
 use crate::stonks_error::RuntimeError;
-use crate::config::{ClientConfig, UrlConfig};
-// use secstr::SecUtf8;
-// use serde::ser::Serialize;
+use crate::config::{ClientConfig, ConfigPaths, UrlConfig};
+use serde::{Deserialize, Serialize};
+use chrono::prelude::*;
+use chrono::Duration;
 use http::header::{AUTHORIZATION};
 use hyper::{
     client::{connect::dns::GaiResolver, HttpConnector},
     Client, Body, Method, Request
 };
 use hyper_tls::HttpsConnector;
-use std::io::{stdin, Write};
-use log::debug;
+use std::{
+    fs,
+    io::{stdin, Read, Write}
+};
+// use log::debug;
 
 type HttpClient = Client<HttpsConnector<HttpConnector<GaiResolver>>, hyper::Body>;
 
 // general response struct from oauth apis
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Credentials {
     pub key: String,
     pub secret: String,
@@ -47,6 +52,13 @@ where
   }
 }
 
+// serde serialization format for writing and retrieving from file
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Token {
+    pub access_creds: Credentials,
+    pub expires_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone)]
 pub enum Mode {
     Sandbox,
@@ -59,12 +71,13 @@ pub struct Session<T> {
     pub urls: UrlConfig<'static>,
     client: HttpClient,
     pub store: T,
+    pub config_paths: ConfigPaths,
 }
 
 impl<T> Session<T>
 where T: Store
 {
-    pub fn new(mode: Mode, store: T) -> Self {
+    pub fn new(mode: Mode, store: T, config_paths: ConfigPaths) -> Self {
         let https = HttpsConnector::new();
         let client = Client::builder().build::<_, hyper::Body>(https);
         Self {
@@ -72,7 +85,22 @@ where T: Store
             urls: UrlConfig::default(),
             client,
             store,
+            config_paths,
         }
+    }
+
+    pub fn expired_access_token(&mut self) -> bool {
+        if let Ok(mut file) = fs::File::open(&self.config_paths.token_cache_path) {
+            let mut tok_str = String::new();
+            if file.read_to_string(&mut tok_str).is_ok() {
+                if let Ok(tok) = serde_json::from_str::<Token>(&tok_str) {
+                    let now = Utc::now() - Duration::hours(5);
+                    return now > tok.expires_at;
+                }
+            }
+        }
+
+        true
     }
 
     pub async fn full_access_flow(&mut self, client_config: ClientConfig) -> Result<(), RuntimeError> {
@@ -100,7 +128,22 @@ where T: Store
         // finished oauth process
         self.store.put(creds.key.to_owned(), oauth_access_creds.clone());
 
-        println!("OAuth saved to in memory store: consumer key {} | oauth key {}", &creds.key, &oauth_access_creds.key);
+        // write access creds to file
+        let mut file = fs::OpenOptions::new().write(true).create(true).open(&self.config_paths.token_cache_path)?;
+        // shrink file
+        file.set_len(0)?;
+        let token = Token {
+            access_creds: oauth_access_creds.clone(),
+            expires_at: utils::midnight_eastern(1),
+        };
+        let access_creds = serde_json::to_string::<Token>(&token)?;
+        file.write_all(access_creds.as_bytes())?;
+
+        println!(
+            "OAuth saved to in memory store: consumer key {} | \noauth access key {}",
+            &creds.key,
+            &oauth_access_creds.key
+        );
 
         Ok(())
     }
@@ -169,7 +212,6 @@ where T: Store
         // let client = reqwest::Client::builder().build()?;
         // let req = client.get(uri).header(AUTHORIZATION, authorization);
         // let resp = req.send().await?;
-        // dbg!(resp);
     }
 
     fn verify_code(&self, url: String) -> Result<String, RuntimeError> {
