@@ -4,13 +4,13 @@ use crate::stonks_error::RuntimeError;
 use crate::config::{ClientConfig, ConfigPaths, UrlConfig};
 use serde::{Deserialize, Serialize};
 use chrono::prelude::*;
-use chrono::Duration;
 use http::header::{AUTHORIZATION};
 use hyper::{
     client::{connect::dns::GaiResolver, HttpConnector},
-    Client, Body, Method, Request
+    Client, Body, Method, Request, Response
 };
 use hyper_tls::HttpsConnector;
+use log::debug;
 use std::{
     fs,
     io::{stdin, Read, Write}
@@ -54,9 +54,12 @@ where
 
 // serde serialization format for writing and retrieving from file
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Token {
-    pub access_creds: Credentials,
+pub struct LocalCredsData {
+    pub access_creds: Credentials, // we store this for all requests
+    pub request_token_creds: Credentials, // we store this if user quits application and opens up and we just need to renew_access_token
+    pub verification_code: String, // we store this if user quits application and opens up and we just need to renew_access_token
     pub expires_at: DateTime<Utc>,
+    pub last_request_timestamp: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
@@ -89,18 +92,39 @@ where T: Store
         }
     }
 
-    pub fn expired_access_token(&mut self) -> bool {
+    pub fn get_creds_from_cache(&mut self) -> Option<LocalCredsData> {
         if let Ok(mut file) = fs::File::open(&self.config_paths.token_cache_path) {
-            let mut tok_str = String::new();
-            if file.read_to_string(&mut tok_str).is_ok() {
-                if let Ok(tok) = serde_json::from_str::<Token>(&tok_str) {
-                    let now = Utc::now() - Duration::hours(5);
-                    return now > tok.expires_at;
+            let mut local_data_str = String::new();
+            if file.read_to_string(&mut local_data_str).is_ok() {
+                if let Ok(local_data) = serde_json::from_str::<LocalCredsData>(&local_data_str) {
+                    return Some(local_data);
                 }
             }
         }
 
+        None
+    }
+
+    pub fn expired_access_token(&mut self, local_data: &LocalCredsData) -> bool {
+        return utils::now_eastern() > local_data.expires_at;
+    }
+
+    pub fn should_renew_access_token(&mut self) -> bool {
+        if let Some(local_data) = self.get_creds_from_cache() {
+            let now = utils::now_eastern();
+            return now > local_data.last_request_timestamp;
+        }
+
         true
+    }
+
+    pub fn hydrate_local_store(&mut self, client_config: ClientConfig, local_data: &LocalCredsData) {
+        // rehydrate local store
+        if let Some(local_data) = self.get_creds_from_cache() {
+            self.store.put(client_config.consumer_key.to_owned(), local_data.access_creds.clone());
+            self.store.put(client_config.consumer_key.to_owned() + &"request_token".to_string(), local_data.request_token_creds.clone());
+            self.store.set_verification_code(local_data.verification_code.to_owned());
+        }
     }
 
     pub async fn full_access_flow(&mut self, client_config: ClientConfig) -> Result<(), RuntimeError> {
@@ -115,6 +139,7 @@ where T: Store
         }
 
         let request_token_creds = request_token_creds.unwrap();
+
         let verification_code = self.verification_code(&creds, &request_token_creds)?;
         self.store.set_verification_code(verification_code.to_owned());
 
@@ -122,28 +147,15 @@ where T: Store
         // expires at midnight Eastern Time
         // These should be used and passed in the header of subsequent requests for tickers
         // https://apisb.etrade.com/docs/api/authorization/get_access_token.html
-        let oauth_access_creds = self.access_token(&creds, &request_token_creds, &verification_code).await;
+        let uri = match self.mode {
+            Mode::Sandbox => self.urls.sandbox_access_token_url,
+            Mode::Live => self.urls.access_token_url,
+        };
+        let oauth_access_creds = self.access_token(uri, &creds, &request_token_creds, &verification_code).await;
         let oauth_access_creds = oauth_access_creds.unwrap();
 
         // finished oauth process
-        self.store.put(creds.key.to_owned(), oauth_access_creds.clone());
-
-        // write access creds to file
-        let mut file = fs::OpenOptions::new().write(true).create(true).open(&self.config_paths.token_cache_path)?;
-        // shrink file
-        file.set_len(0)?;
-        let token = Token {
-            access_creds: oauth_access_creds.clone(),
-            expires_at: utils::midnight_eastern(1),
-        };
-        let access_creds = serde_json::to_string::<Token>(&token)?;
-        file.write_all(access_creds.as_bytes())?;
-
-        println!(
-            "OAuth saved to in memory store: consumer key {} | \noauth access key {}",
-            &creds.key,
-            &oauth_access_creds.key
-        );
+        self.save_creds_to_file(&request_token_creds, oauth_access_creds);
 
         Ok(())
     }
@@ -159,7 +171,7 @@ where T: Store
             .callback("oob")
             .get(&uri, &());
 
-        let body = self.send_request(uri, authorization_header).await;
+        let body = self.send_request_for_auth(uri, authorization_header).await;
         let creds: oauth_credentials::Credentials<Box<str>> = serde_urlencoded::from_bytes(&body)?;
         let request_token_creds = creds.into();
 
@@ -173,25 +185,20 @@ where T: Store
     }
 
     // https://apisb.etrade.com/docs/api/authorization/authorize.html
-    pub async fn access_token(&self, consumer: &Credentials, request_token_creds: &Credentials, verification_code: &String) -> Result<Credentials, RuntimeError> {
-        let uri = match self.mode {
-            Mode::Sandbox => self.urls.sandbox_access_token_url,
-            Mode::Live => self.urls.access_token_url,
-        };
+    pub async fn access_token(&self, uri: &str, consumer: &Credentials, request_token_creds: &Credentials, verification_code: &String) -> Result<Credentials, RuntimeError> {
         let authorization_header = oauth::Builder::<_, _>::new(consumer.clone().into(), oauth::HmacSha1)
             .token(Some(request_token_creds.clone().into()))
             .verifier(Some(verification_code.as_ref()))
             .get(&uri, &());
 
-        let body = self.send_request(uri, authorization_header).await;
+        let body = self.send_request_for_auth(uri, authorization_header).await;
         let creds: oauth_credentials::Credentials<Box<str>> = serde_urlencoded::from_bytes(&body)?;
         let oauth_access_creds = creds.into();
 
         Ok(oauth_access_creds)
     }
 
-    pub async fn send_request(&self, uri: &str, authorization: String) -> Vec<u8> {
-        println!("{}", uri);
+    pub async fn send_request(&self, uri: &str, authorization: String) -> Result<Response<Body>, hyper::Error> {
         let req = Request::builder()
             .method(Method::GET)
             .uri(uri)
@@ -199,11 +206,20 @@ where T: Store
             .body(Body::empty());
 
         let req = self.client.request(req.unwrap());
-        let resp = req.await.unwrap();
+        let resp = req.await;
+        resp
 
-        println!("{}", resp.status());
+        // let client = reqwest::Client::builder().build()?;
+        // let req = client.get(uri).header(AUTHORIZATION, authorization);
+        // let resp = req.send().await?;
+    }
+
+    pub async fn send_request_for_auth(&self, uri: &str, authorization: String) -> Vec<u8> {
+        let resp = self.send_request(uri, authorization).await.unwrap();
+
         if resp.status().as_u16() / 100 == 2 {
-            hyper::body::to_bytes(resp.into_body()).await.unwrap().to_vec()
+            let bd = resp.into_body();
+            hyper::body::to_bytes(bd).await.unwrap().to_vec()
         } else {
             println!("error {:?}", resp);
             vec![]
@@ -223,5 +239,40 @@ where T: Store
 
         let result = key.trim().to_owned();
         Ok(result)
+    }
+
+    fn save_creds_to_file(&self, request_token_creds: &Credentials, oauth_access_creds: Credentials) -> Result<(), RuntimeError> {
+        // write access creds to file
+        let mut file = fs::OpenOptions::new().write(true).create(true).open(&self.config_paths.token_cache_path)?;
+        // shrink file
+        file.set_len(0)?;
+        let data = LocalCredsData {
+            request_token_creds: oauth_access_creds.clone(),
+            access_creds: oauth_access_creds.clone(),
+            verification_code: self.store.get_verification_code(),
+            expires_at: utils::midnight_eastern(1),
+            last_request_timestamp: utils::now_eastern(),
+        };
+        let access_creds = serde_json::to_string::<LocalCredsData>(&data)?;
+        file.write_all(access_creds.as_bytes())?;
+
+        debug!("OAuth saved to in memory store: oauth access key {}", &oauth_access_creds.key);
+
+        Ok(())
+    }
+
+    pub async fn renew_access_token(&mut self, client_config: ClientConfig, local_data: LocalCredsData) -> Result<(), RuntimeError> {
+        let creds = Credentials::new(client_config.consumer_key.to_string(), client_config.consumer_secret.to_string());
+
+        let uri = match self.mode {
+            Mode::Sandbox => self.urls.sandbox_renew_token_url,
+            Mode::Live => self.urls.renew_token_url,
+        };
+        let oauth_access_creds = self.access_token(uri, &creds, &local_data.request_token_creds, &local_data.verification_code).await;
+        let oauth_access_creds = oauth_access_creds.unwrap();
+
+        self.save_creds_to_file(&local_data.request_token_creds, oauth_access_creds);
+
+        Ok(())
     }
 }

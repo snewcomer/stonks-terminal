@@ -77,17 +77,32 @@ async fn run(mode: Mode) -> Result<(), RuntimeError> {
 
     let mut session = Session::new(mode, AuthInMemoryStore::new(), config_paths);
 
-    // check if we have a non expired access token
-    let etrade_token_expiry = utils::midnight_eastern(1);
-    if session.expired_access_token() {
-        // get consumer and access tokens
+    // SESSION REQUESTS ---
+    if let Some(cached_creds) = session.get_creds_from_cache() {
+        session.hydrate_local_store(client_config.clone(), &cached_creds);
+
+        if session.expired_access_token(&cached_creds) {
+            // get consumer and access tokens if no access creds or expired at midnight
+            session.full_access_flow(client_config.clone()).await?;
+        } else if session.should_renew_access_token() {
+            session.renew_access_token(client_config.clone(), cached_creds).await?;
+        }
+    } else {
+        // get consumer and access tokens if no saved data
         session.full_access_flow(client_config.clone()).await?;
     }
+
+    // Now we know we have cached creds
+    let cached_creds = session.get_creds_from_cache();
+    session.hydrate_local_store(client_config.clone(), &cached_creds.unwrap());
+    // END SESSION REQUEST ---
 
     let (sync_io_tx, sync_io_rx) = std::sync::mpsc::channel::<IoEvent>();
 
     // network APIs interface
     let etrade = Etrade::new(client_config.clone());
+
+    let etrade_token_expiry = utils::midnight_eastern(1);
 
     // Initialise app state
     let app = Arc::new(Mutex::new(App::new(

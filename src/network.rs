@@ -249,14 +249,9 @@ where T: Store {
     async fn get_ticker(&mut self, ticker_id: String) {
         match self.etrade.ticker(&self.session, &ticker_id).await {
             Ok(ticker) => {
-                let selected_ticker = SelectedTicker {
-                    ticker,
-                    selected_index: 0,
-                };
-
                 let mut app = self.app.lock().await;
 
-                app.selected_ticker = Some(selected_ticker);
+                app.selected_ticker = Some(ticker.into());
                 app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
             }
             Err(e) => {

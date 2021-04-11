@@ -1,5 +1,7 @@
+use crate::clients::etrade_xml_structs::TickerXML;
 use crate::config::UserConfig;
 use crate::network::IoEvent;
+use crate::utils;
 use std::sync::mpsc::Sender;
 use std::{
     time::{Instant, SystemTime},
@@ -65,7 +67,10 @@ pub struct WatchList {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Ticker {
     pub symbol: String,
+    pub bid: String,
+    pub ask: String,
 }
+
 #[derive(Clone)]
 pub struct OptionChain {}
 
@@ -109,6 +114,21 @@ pub enum SearchResultType {
 pub struct SelectedTicker {
     pub ticker: Ticker,
     pub selected_index: usize,
+}
+
+impl From<TickerXML> for SelectedTicker {
+    fn from(t: TickerXML) -> SelectedTicker {
+        let ticker = Ticker {
+            symbol: t.QuoteData.Product.symbol,
+            bid: t.QuoteData.All.bid,
+            ask: t.QuoteData.All.ask,
+        };
+
+        SelectedTicker {
+            ticker,
+            selected_index: 0,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -213,7 +233,7 @@ impl Default for App {
             help_menu_offset: 0,
             is_loading: false,
             io_tx: None,
-            etrade_token_expiry: Utc::now() - Duration::hours(5),
+            etrade_token_expiry: utils::now_eastern(),
             dialog: None,
             confirm: false,
         }

@@ -5,8 +5,8 @@ pub mod util;
 
 pub use key::Key;
 
-use crate::app::{ActiveBlock, App, MAJOR_INDICES};
-use util::get_color;
+use crate::app::{ActiveBlock, App, MAJOR_INDICES, RouteId};
+use util::{get_color, get_percentage_width};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -16,19 +16,62 @@ use tui::{
     Frame,
 };
 
+pub enum TableId {
+  TickerDetail,
+  TickerList,
+  RecentlySearched,
+}
+
+#[derive(PartialEq)]
+pub enum ColumnId {
+  None,
+  Symbol,
+  Bid,
+  Ask,
+}
+
+impl Default for ColumnId {
+  fn default() -> Self {
+    ColumnId::None
+  }
+}
+
+pub struct TableHeader<'a> {
+  id: TableId,
+  items: Vec<TableHeaderItem<'a>>,
+}
+
+impl TableHeader<'_> {
+  pub fn get_index(&self, id: ColumnId) -> Option<usize> {
+    self.items.iter().position(|item| item.id == id)
+  }
+}
+
+#[derive(Default)]
+pub struct TableHeaderItem<'a> {
+  id: ColumnId,
+  text: &'a str,
+  width: u16,
+}
+
+pub struct TableItem {
+  id: String,
+  format: Vec<String>,
+}
+
 pub fn draw_main<B>(f: &mut Frame<B>, app: &App)
     where B: Backend,
-          {
-              let parent_layout = Layout::default()
-                  .direction(Direction::Vertical)
-                  .constraints([Constraint::Length(3), Constraint::Min(1)].as_ref())
-                  .margin(1)
-                  .split(f.size());
+{
+  let parent_layout = Layout::default()
+      .direction(Direction::Vertical)
+      .constraints([Constraint::Length(3), Constraint::Min(1)].as_ref())
+      .margin(1)
+      .split(f.size());
 
-              draw_input_and_help_box(f, &app, parent_layout[0]);
-              // Nested main block with potential routes
-              draw_user_blocks(f, &app, parent_layout[1]);
-          }
+  draw_input_and_help_box(f, &app, parent_layout[0]);
+  // Nested main block with potential routes
+  draw_user_blocks(f, &app, parent_layout[1]);
+}
 
 pub fn draw_user_blocks<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     where
@@ -40,7 +83,99 @@ pub fn draw_user_blocks<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         .split(layout_chunk);
 
     draw_tickers_block(f, app, chunks[0]);
-    draw_home(f, app, chunks[1]);
+    draw_a_route(f, app, chunks[1]);
+}
+
+pub fn draw_a_route<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
+    where
+    B: Backend,
+{
+    let current_route = app.get_current_route();
+
+    match current_route.id {
+        RouteId::TickerDetail => {
+           draw_ticker_detail(f, app, layout_chunk)
+        }
+        RouteId::Home => {
+           draw_home(f, app, layout_chunk)
+        }
+        _ => draw_home(f, app, layout_chunk)
+
+    }
+}
+
+pub fn draw_ticker_detail<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
+    where
+    B: Backend,
+{
+    let current_route = app.get_current_route();
+    let highlight_state = (
+        current_route.active_block == ActiveBlock::TickerDetail,
+        current_route.hovered_block == ActiveBlock::TickerDetail,
+    );
+
+    let selected_ticker = app.selected_ticker.as_ref();
+    let ticker = &selected_ticker.unwrap().ticker;
+
+    let header = TableHeader {
+        id: TableId::TickerDetail,
+        items: vec![
+            TableHeaderItem {
+                id: ColumnId::Bid,
+                text: "Bid",
+                // We need to subtract the fixed value of the previous column
+                width: get_percentage_width(layout_chunk.width, 2.0 / 5.0) - 2,
+            },
+            TableHeaderItem {
+                text: "Ask",
+                width: get_percentage_width(layout_chunk.width, 2.0 / 5.0),
+                ..Default::default()
+            },
+        ],
+    };
+
+    let selected_style =
+        get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD);
+
+    let item = TableItem {
+        id: ticker.symbol.to_owned(),
+        format: vec![
+            ticker.bid.to_owned(),
+            ticker.ask.to_owned(),
+        ]
+    };
+
+    let mut style = Style::default().fg(app.user_config.theme.text); // default styling
+
+    // Return row styled data
+    let mut formatted_row = item.format.clone();
+    let row = Row::new(formatted_row).style(style);
+
+    let widths = header
+        .items
+        .iter()
+        .map(|h| Constraint::Length(h.width))
+        .collect::<Vec<tui::layout::Constraint>>();
+
+    let table = Table::new(vec![row])
+        .header(
+          Row::new(header.items.iter().map(|h| h.text))
+            .style(Style::default().fg(app.user_config.theme.header)),
+        )
+        .block(
+          Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(app.user_config.theme.text))
+            .title(Span::styled(
+              ticker.symbol.to_owned(),
+              get_color(highlight_state, app.user_config.theme),
+            ))
+            .border_style(get_color(highlight_state, app.user_config.theme)),
+        )
+        .style(Style::default().fg(app.user_config.theme.text))
+        .widths(&widths);
+
+    f.render_widget(table, layout_chunk);
 }
 
 pub fn draw_home<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)

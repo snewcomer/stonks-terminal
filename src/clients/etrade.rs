@@ -1,3 +1,4 @@
+use super::etrade_xml_structs;
 use chrono::prelude::*;
 use derive_builder::Builder;
 use crate::app::{Ticker, SearchType, User};
@@ -40,12 +41,16 @@ impl Etrade {
         access_creds.unwrap().clone().into()
     }
 
-    pub async fn ticker<T: Store>(&self, session: &Session<T>, symbol: &str) -> ClientResult<Ticker> {
+    pub async fn ticker<T: Store>(&self, session: &Session<T>, symbol: &str) -> ClientResult<etrade_xml_structs::TickerXML> {
         let uri = session.urls.etrade_ticker_url(symbol, &session.mode);
         let authorization_header = self.build_authorization_header(&uri, &session);
 
-        let body = session.send_request(&uri, authorization_header).await;
-        let ticker: Ticker = serde_urlencoded::from_bytes(&body)?;
+        let resp = session.send_request(&uri, authorization_header).await;
+
+        let bd = resp.unwrap().into_body();
+        let bytes = hyper::body::to_bytes(bd).await?;
+        let ticker: etrade_xml_structs::TickerXML = serde_xml_rs::from_reader(&bytes[..])?;
+        eprintln!("{:?}", ticker);
 
         Ok(ticker)
     }

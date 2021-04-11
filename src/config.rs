@@ -17,8 +17,11 @@ const SANDBOX_REQUEST_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/request_
 const ACCESS_TOKEN_URL_SANDBOX: &str = "https://api.etrade.com/oauth/access_token";
 const SANDBOX_ACCESS_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/access_token";
 
-const QUOTE_URL: &str = " https://api.etrade.com/v1/market/quote";
-const SANDBOX_QUOTE_URL: &str = " https://apisb.etrade.com/v1/market/quote";
+const RENEW_TOKEN_URL_SANDBOX: &str = "https://api.etrade.com/oauth/renew_token";
+const SANDBOX_RENEW_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/renew_token";
+
+const QUOTE_URL: &str = "https://api.etrade.com/v1/market/quote";
+const SANDBOX_QUOTE_URL: &str = "https://apisb.etrade.com/v1/market/quote";
 
 // const DEFAULT_PORT: u16 = 8888;
 const FILE_NAME: &str = "client.yml";
@@ -98,6 +101,8 @@ pub struct UrlConfig<'a> {
     pub sandbox_request_token_url: &'a str,
     pub access_token_url: &'a str,
     pub sandbox_access_token_url: &'a str,
+    pub renew_token_url: &'a str,
+    pub sandbox_renew_token_url: &'a str,
     pub quote_url: &'a str,
     pub sandbox_quote_url: &'a str,
 }
@@ -109,6 +114,8 @@ impl<'a> Default for UrlConfig<'a> {
             sandbox_request_token_url: SANDBOX_REQUEST_TOKEN_URL,
             access_token_url: ACCESS_TOKEN_URL_SANDBOX,
             sandbox_access_token_url: SANDBOX_ACCESS_TOKEN_URL,
+            renew_token_url: RENEW_TOKEN_URL_SANDBOX,
+            sandbox_renew_token_url: SANDBOX_RENEW_TOKEN_URL,
             quote_url: QUOTE_URL,
             sandbox_quote_url: SANDBOX_QUOTE_URL,
         }

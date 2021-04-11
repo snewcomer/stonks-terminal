@@ -11,3 +11,8 @@ pub fn midnight_eastern(days: i64) -> DateTime<Utc> {
     now = (now + Duration::days(days)).date().and_hms(0, 0, 0);
     now
 }
+
+pub fn now_eastern() -> DateTime<Utc> {
+    Utc::now() - Duration::hours(5)
+}
+

@@ -5,6 +5,7 @@ pub trait Store {
     fn get(&self, key: String) -> Option<&Credentials>;
     fn put(&mut self, key: String, secret: Credentials);
     fn delete(&mut self, key: String);
+    fn get_verification_code(&self) -> String;
     fn set_verification_code(&mut self, verification_code: String);
 }
 
@@ -35,6 +36,10 @@ impl Store for AuthInMemoryStore {
 
     fn delete(&mut self, key: String) {
         self.data.remove(&key);
+    }
+
+    fn get_verification_code(&self) -> String {
+        self.verification_code.to_owned()
     }
 
     fn set_verification_code(&mut self, verification_code: String) {

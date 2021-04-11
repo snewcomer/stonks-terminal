@@ -1,4 +1,5 @@
 use std::fmt;
+use http;
 // use std::error::Error;
 
 // Error strategy
@@ -34,9 +35,16 @@ impl From<hyper::http::Error> for RuntimeError {
     }
 }
 
+impl From<serde_xml_rs::Error> for RuntimeError {
+    fn from(err: serde_xml_rs::Error) -> RuntimeError {
+        eprintln!("{:?}", err);
+        RuntimeError { message: "XML error".to_string() }
+    }
+}
+
 impl From<serde_yaml::Error> for RuntimeError {
     fn from(err: serde_yaml::Error) -> RuntimeError {
-        eprintln!("{:?}", err);
+        // eprintln!("{:?}", err);
         RuntimeError { message: "Yaml error".to_string() }
     }
 }
@@ -50,7 +58,7 @@ impl From<serde_json::Error> for RuntimeError {
 
 impl From<serde_urlencoded::de::Error> for RuntimeError {
     fn from(err: serde_urlencoded::de::Error) -> RuntimeError {
-        eprintln!("{:?}", err);
+        // eprintln!("{:?}", err);
         RuntimeError { message: "Yaml error".to_string() }
     }
 }
@@ -58,7 +66,7 @@ impl From<serde_urlencoded::de::Error> for RuntimeError {
 impl From<crossterm::ErrorKind> for RuntimeError {
     fn from(err: crossterm::ErrorKind) -> RuntimeError {
         eprintln!("{:?}", err);
-        RuntimeError { message: "Yaml error".to_string() }
+        RuntimeError { message: "Cross term error".to_string() }
     }
 }
 
