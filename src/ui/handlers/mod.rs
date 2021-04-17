@@ -3,6 +3,8 @@ mod empty;
 mod portfolio;
 mod input;
 mod watch_list;
+mod search_results;
+// mod ticker_detail;
 
 use crate::app::{ActiveBlock, App, RouteId, SearchResults};
 use crate::network::IoEvent;
@@ -45,15 +47,18 @@ fn handle_block_events(key: Key, app: &mut App) {
         // ActiveBlock::Error => {
         //     error_screen::handler(key, app);
         // }
-        // ActiveBlock::SearchResultBlock => {
-        //     search_results::handler(key, app);
-        // }
+        ActiveBlock::SearchResults => {
+            search_results::handler(key, app);
+        }
         // ActiveBlock::Home => {
         //     home::handler(key, app);
         // }
         ActiveBlock::WatchList => {
             watch_list::handler(key, app);
         }
+        // ActiveBlock::TickerDetail => {
+        //     ticker_detail::handler(key, app);
+        // }
         ActiveBlock::Portfolio => {
             portfolio::handler(key, app);
         }
@@ -76,7 +81,16 @@ fn handle_block_events(key: Key, app: &mut App) {
 fn handle_escape(app: &mut App) {
     match app.get_current_route().active_block {
         ActiveBlock::SearchResults => {
-            app.search_results.selected_block = SearchResults::Empty;
+            // app.search_results.selected_block = ActiveBlock::SearchResults;
+        }
+        ActiveBlock::TickerDetail => {
+            if let (Some(_tickers), Some(_selected_ticker_index)) =
+                (&app.search_results.tickers, &app.search_results.selected_ticker_index)
+                {
+                    app.push_navigation_stack(RouteId::Search, ActiveBlock::SearchResults);
+                } else {
+                    app.set_current_route_state(Some(ActiveBlock::Empty), None);
+                }
         }
         ActiveBlock::Error => {
             app.pop_navigation_stack();

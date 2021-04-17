@@ -27,7 +27,6 @@ use crossterm::{
 use std::{
     sync::Arc,
     io::{stdout},
-    time::{SystemTime},
 };
 use log::debug;
 use tokio::sync::Mutex;
@@ -79,7 +78,7 @@ async fn run(mode: Mode) -> Result<(), RuntimeError> {
 
     // SESSION REQUESTS ---
     if let Some(cached_creds) = session.get_creds_from_cache() {
-        session.hydrate_local_store(client_config.clone(), &cached_creds);
+        session.hydrate_local_store(client_config.clone());
 
         if session.expired_access_token(&cached_creds) {
             // get consumer and access tokens if no access creds or expired at midnight
@@ -93,8 +92,7 @@ async fn run(mode: Mode) -> Result<(), RuntimeError> {
     }
 
     // Now we know we have cached creds
-    let cached_creds = session.get_creds_from_cache();
-    session.hydrate_local_store(client_config.clone(), &cached_creds.unwrap());
+    session.hydrate_local_store(client_config.clone());
     // END SESSION REQUEST ---
 
     let (sync_io_tx, sync_io_rx) = std::sync::mpsc::channel::<IoEvent>();

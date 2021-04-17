@@ -111,14 +111,14 @@ where T: Store
 
     pub fn should_renew_access_token(&mut self) -> bool {
         if let Some(local_data) = self.get_creds_from_cache() {
-            let now = utils::now_eastern();
+            let now = utils::now_plus_hours(-2);
             return now > local_data.last_request_timestamp;
         }
 
         true
     }
 
-    pub fn hydrate_local_store(&mut self, client_config: ClientConfig, local_data: &LocalCredsData) {
+    pub fn hydrate_local_store(&mut self, client_config: ClientConfig) {
         // rehydrate local store
         if let Some(local_data) = self.get_creds_from_cache() {
             self.store.put(client_config.consumer_key.to_owned(), local_data.access_creds.clone());
@@ -135,7 +135,7 @@ where T: Store
         // lives for 5 minutes
         // https://apisb.etrade.com/docs/api/authorization/authorize.html
         if request_token_creds.is_err() {
-            return Err(RuntimeError { message: "request_token failed".to_string() })
+            return Err(RuntimeError { message: "request_token failed".to_string() });
         }
 
         let request_token_creds = request_token_creds.unwrap();
@@ -155,7 +155,7 @@ where T: Store
         let oauth_access_creds = oauth_access_creds.unwrap();
 
         // finished oauth process
-        self.save_creds_to_file(&request_token_creds, oauth_access_creds);
+        self.save_creds_to_file(&request_token_creds, oauth_access_creds)?;
 
         Ok(())
     }
@@ -247,7 +247,7 @@ where T: Store
         // shrink file
         file.set_len(0)?;
         let data = LocalCredsData {
-            request_token_creds: oauth_access_creds.clone(),
+            request_token_creds: request_token_creds.clone(),
             access_creds: oauth_access_creds.clone(),
             verification_code: self.store.get_verification_code(),
             expires_at: utils::midnight_eastern(1),
@@ -269,9 +269,13 @@ where T: Store
             Mode::Live => self.urls.renew_token_url,
         };
         let oauth_access_creds = self.access_token(uri, &creds, &local_data.request_token_creds, &local_data.verification_code).await;
-        let oauth_access_creds = oauth_access_creds.unwrap();
+        if oauth_access_creds.is_ok() {
+            let oauth_access_creds = oauth_access_creds.unwrap();
 
-        self.save_creds_to_file(&local_data.request_token_creds, oauth_access_creds);
+            self.save_creds_to_file(&local_data.request_token_creds, oauth_access_creds)?;
+        } else {
+            self.full_access_flow(client_config).await?;
+        }
 
         Ok(())
     }

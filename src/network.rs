@@ -1,4 +1,4 @@
-use crate::app::{ActiveBlock, App, WatchList, RouteId, SearchType, SearchResult, SearchResultType, SelectedTicker};
+use crate::app::{ActiveBlock, App, WatchList, RouteId, SearchType, SearchResult, SearchResultType, SelectedTicker, Ticker};
 use crate::clients::etrade::{Etrade, EtradeTokenInfo};
 use crate::config::ClientConfig;
 use crate::session::Session;
@@ -141,23 +141,20 @@ where T: Store {
     }
 
     async fn get_search_results(&mut self, search_term: String) {
-        let searched_tickers = self.etrade.search(
-            &search_term,
-            SearchType::Ticker,
-            self.small_search_limit,
-        ).await;
+        let searched_tickers = self.etrade.search(&self.session, &search_term).await;
 
         match searched_tickers {
             Ok(tickers) => {
                 let mut app = self.app.lock().await;
-                let ticker_ids = tickers
-                    .iter()
-                    .filter_map(|ticker| Some(ticker.symbol.to_owned()))
-                    .collect();
+                // let ticker_ids = tickers
+                //     .iter()
+                //     .filter_map(|ticker| Some(ticker.symbol.to_owned()))
+                //     .collect();
 
-                // Check if these tickers are saved
-                app.dispatch(IoEvent::CurrentUserSavedTickersContains(ticker_ids));
-                app.search_results = SearchResult::tickers(tickers);
+                // // Check if these tickers are saved
+                // app.dispatch(IoEvent::CurrentUserSavedTickersContains(ticker_ids));
+                app.search_results = SearchResult::tickers(tickers.into_iter().map(|t| t.into()).collect::<Vec<Ticker>>());
+                app.search_term = search_term;
             },
             Err(e) => self.handle_error(anyhow!(e)).await
         }

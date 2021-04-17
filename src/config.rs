@@ -1,5 +1,5 @@
 use crate::stonks_error::RuntimeError;
-use crate::session::Mode;
+use crate::session::{Credentials, Mode};
 use crate::ui::key::Key;
 use serde::{Serialize, Deserialize};
 use std::{
@@ -22,6 +22,9 @@ const SANDBOX_RENEW_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/renew_toke
 
 const QUOTE_URL: &str = "https://api.etrade.com/v1/market/quote";
 const SANDBOX_QUOTE_URL: &str = "https://apisb.etrade.com/v1/market/quote";
+
+const SEARCH_URL: &str = "https://api.etrade.com/v1/market/lookup";
+const SANDBOX_SEARCH_URL: &str = "https://apisb.etrade.com/v1/market/lookup";
 
 // const DEFAULT_PORT: u16 = 8888;
 const FILE_NAME: &str = "client.yml";
@@ -105,6 +108,8 @@ pub struct UrlConfig<'a> {
     pub sandbox_renew_token_url: &'a str,
     pub quote_url: &'a str,
     pub sandbox_quote_url: &'a str,
+    pub search_url: &'a str,
+    pub sandbox_search_url: &'a str,
 }
 
 impl<'a> Default for UrlConfig<'a> {
@@ -118,6 +123,8 @@ impl<'a> Default for UrlConfig<'a> {
             sandbox_renew_token_url: SANDBOX_RENEW_TOKEN_URL,
             quote_url: QUOTE_URL,
             sandbox_quote_url: SANDBOX_QUOTE_URL,
+            search_url: SEARCH_URL,
+            sandbox_search_url: SANDBOX_SEARCH_URL,
         }
     }
 }
@@ -143,6 +150,17 @@ impl<'a> UrlConfig<'a> {
         )
     }
 
+    pub fn etrade_search_url(&self, search_input: &str, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => self.sandbox_search_url,
+            Mode::Live => self.search_url,
+        };
+        format!(
+            "{}/{}",
+            url,
+            search_input,
+        )
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -240,5 +258,14 @@ impl ClientConfig {
         let mut key = String::new();
         stdin().read_line(&mut key)?;
         Ok(key.trim().to_owned())
+    }
+}
+
+impl From<Credentials> for ClientConfig {
+    fn from(t: Credentials) -> ClientConfig {
+        Self {
+            consumer_key: t.key,
+            consumer_secret: t.secret,
+        }
     }
 }

@@ -83,12 +83,15 @@ pub fn handle_right_event(app: &mut App) {
         ActiveBlock::Portfolio | ActiveBlock::WatchList => match app.get_current_route().id {
             RouteId::Search => {
                 app.set_current_route_state(
-                    Some(ActiveBlock::SearchResults),
+                    None,
                     Some(ActiveBlock::SearchResults),
                 );
             }
             RouteId::Home => {
-                app.set_current_route_state(Some(ActiveBlock::Home), Some(ActiveBlock::Home));
+                app.set_current_route_state(None, Some(ActiveBlock::Home));
+            }
+            RouteId::TickerDetail => {
+                app.set_current_route_state(None, Some(ActiveBlock::TickerDetail));
             }
             RouteId::Error => {}
             RouteId::Analysis => {}

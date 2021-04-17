@@ -6,6 +6,7 @@ use crate::config::ClientConfig;
 use crate::stonks_error::RuntimeError;
 use crate::session::{Credentials, Session};
 use crate::store::Store;
+use std::{io::{Write}};
 
 pub type ClientResult<T> = Result<T, RuntimeError>;
 
@@ -45,22 +46,42 @@ impl Etrade {
         let uri = session.urls.etrade_ticker_url(symbol, &session.mode);
         let authorization_header = self.build_authorization_header(&uri, &session);
 
-        let resp = session.send_request(&uri, authorization_header).await;
-
-        let bd = resp.unwrap().into_body();
-        let bytes = hyper::body::to_bytes(bd).await?;
-        let ticker: etrade_xml_structs::TickerXML = serde_xml_rs::from_reader(&bytes[..])?;
-        eprintln!("{:?}", ticker);
-
-        Ok(ticker)
+        let resp = session.send_request(&uri, authorization_header).await.unwrap();
+        if resp.status().as_u16() / 100 == 2 {
+            let bd = resp.into_body();
+            let bytes = hyper::body::to_bytes(bd).await?;
+            let ticker: etrade_xml_structs::TickerXML = serde_xml_rs::from_reader(&bytes[..])?;
+            Ok(ticker)
+        } else if resp.status().as_u16() == 401 {
+            // retry auth and rety
+            // if let Some(cached_creds) = session.get_creds_from_cache() {
+            //     session.renew_access_token(self.client_creds.clone().into(), cached_creds).await?;
+            // }
+            return Err(RuntimeError { message: "request failed".to_string() });
+        } else {
+            return Err(RuntimeError { message: "request failed".to_string() });
+        }
     }
 
     pub async fn portfolio(&self) -> ClientResult<Vec<Ticker>> {
         todo!();
     }
 
-    pub async fn search(&self, search_term: &String, search_type: SearchType, search_limit: u32) -> ClientResult<Vec<Ticker>> {
-        todo!();
+    pub async fn search<T: Store>(&self, session: &Session<T>, search_term: &String) -> ClientResult<Vec<etrade_xml_structs::TickerSearchData>> {
+        let uri = session.urls.etrade_search_url(search_term, &session.mode);
+        let authorization_header = self.build_authorization_header(&uri, &session);
+
+        let resp = session.send_request(&uri, authorization_header).await.unwrap();
+        if resp.status().as_u16() / 100 == 2 {
+            let bd = resp.into_body();
+            let bytes = hyper::body::to_bytes(bd).await?;
+            let results: etrade_xml_structs::SearchXML = serde_xml_rs::from_reader(&bytes[..])?;
+            Ok(results.items)
+        } else if resp.status().as_u16() == 401 {
+            return Err(RuntimeError { message: "request failed".to_string() });
+        } else {
+            return Err(RuntimeError { message: "request failed".to_string() });
+        }
     }
 
     pub async fn current_user(&self) -> ClientResult<User> {

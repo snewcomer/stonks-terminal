@@ -100,42 +100,25 @@ fn process_input(app: &mut App, input: String) {
         return;
     }
 
-    // On searching for a track, clear the playlist selection
-    app.selected_ticker_index = Some(0);
-
-    if attempt_process_uri(app, &input, "https://open.etrade.com/", "/")
-        || attempt_process_uri(app, &input, "etrade:", ":")
-        {
-            return;
-        }
+    // On searching for a track, clear the ticker selection
+    app.search_results.selected_ticker_index = Some(0);
 
     // Default fallback behavior: treat the input as a raw search phrase.
     app.dispatch(IoEvent::GetSearchResults(input));
     app.push_navigation_stack(RouteId::Search, ActiveBlock::SearchResults);
 }
 
-fn etrade_resource_id(base: &str, uri: &str, sep: &str, resource_type: &str) -> (String, bool) {
-    let uri_prefix = format!("{}{}{}", base, resource_type, sep);
-    let id_string_with_query_params = uri.trim_start_matches(&uri_prefix);
-    let query_idx = id_string_with_query_params
-        .find('?')
-        .unwrap_or_else(|| id_string_with_query_params.len());
-    let id_string = id_string_with_query_params[0..query_idx].to_string();
-    // If the lengths aren't equal, we must have found a match.
-    let matched = id_string_with_query_params.len() != uri.len() && id_string.len() != uri.len();
-    (id_string, matched)
-}
-
-// Returns true if the input was successfully processed as a etrade URI.
-fn attempt_process_uri(app: &mut App, input: &str, base: &str, sep: &str) -> bool {
-    let (ticker_id, matched) = etrade_resource_id(base, input, sep, "ticker");
-    if matched {
-        app.dispatch(IoEvent::GetTicker(ticker_id));
-        return true;
-    }
-
-    false
-}
+// fn etrade_resource_id(base: &str, uri: &str, sep: &str, resource_type: &str) -> (String, bool) {
+//     let uri_prefix = format!("{}{}{}", base, resource_type, sep);
+//     let id_string_with_query_params = uri.trim_start_matches(&uri_prefix);
+//     let query_idx = id_string_with_query_params
+//         .find('?')
+//         .unwrap_or_else(|| id_string_with_query_params.len());
+//     let id_string = id_string_with_query_params[0..query_idx].to_string();
+//     // If the lengths aren't equal, we must have found a match.
+//     let matched = id_string_with_query_params.len() != uri.len() && id_string.len() != uri.len();
+//     (id_string, matched)
+// }
 
 fn compute_character_width(character: char) -> u16 {
     UnicodeWidthChar::width(character)

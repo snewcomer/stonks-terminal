@@ -1,10 +1,9 @@
-use crate::clients::etrade_xml_structs::TickerXML;
+use crate::clients::etrade_xml_structs::{TickerSearchData, TickerXML};
 use crate::config::UserConfig;
 use crate::network::IoEvent;
 use crate::utils;
 use std::sync::mpsc::Sender;
 use std::{
-    time::{Instant, SystemTime},
     collections::HashSet,
 };
 use chrono::prelude::*;
@@ -67,11 +66,61 @@ pub struct WatchList {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Ticker {
     pub symbol: String,
+    pub description: String,
+    pub date_time: String,
+    pub security_type: String,
+    pub primary_exchange: String,
+    pub declared_dividend: String,
+    pub dividend: String,
+    pub ex_dividend_date: i64,
     pub bid: String,
     pub ask: String,
+    pub open: String,
+    pub high52: String,
+    pub week52_hi_date: i64,
+    pub low52: String,
+    pub week52_low_date: i64,
+    pub eps: String,
+    pub pe: String,
+    pub beta: String,
 }
 
-#[derive(Clone)]
+impl Default for Ticker {
+    fn default() -> Self {
+        Self {
+            symbol: "".to_string(),
+            description: "".to_string(),
+            date_time: "".to_string(),
+            security_type: "Equity".to_string(),
+            primary_exchange: "".to_string(),
+            declared_dividend: "".to_string(),
+            dividend: "".to_string(),
+            ex_dividend_date: 0,
+            bid: "".to_string(),
+            ask: "".to_string(),
+            open: "".to_string(),
+            high52: "".to_string(),
+            week52_hi_date: 0,
+            low52: "".to_string(),
+            week52_low_date: 0,
+            eps: "".to_string(),
+            pe: "".to_string(),
+            beta: "".to_string(),
+        }
+    }
+}
+
+impl From<TickerSearchData> for Ticker {
+    fn from(t: TickerSearchData) -> Ticker {
+        Ticker {
+            symbol: t.symbol,
+            description: t.description,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct OptionChain {}
 
 pub enum SearchType {
@@ -85,12 +134,13 @@ pub enum SearchResults {
     Empty
 }
 
+#[derive(Debug)]
 pub struct SearchResult {
     pub tickers: Option<Vec<Ticker>>,
     pub option_chains: Option<Vec<OptionChain>>,
     pub selected_ticker_index: Option<usize>,
-    pub hovered_block: SearchResults,
-    pub selected_block: SearchResults,
+    // pub hovered_block: SearchResults,
+    // pub selected_block: SearchResults,
 }
 
 impl SearchResult {
@@ -98,9 +148,9 @@ impl SearchResult {
         Self {
             tickers: Some(tickers),
             option_chains: None,
-            selected_ticker_index: None,
-            hovered_block: SearchResults::TradingVolume,
-            selected_block: SearchResults::Empty,
+            selected_ticker_index: Some(0),
+            // hovered_block: SearchResults::TradingVolume,
+            // selected_block: SearchResults::Empty,
         }
     }
 }
@@ -110,7 +160,7 @@ pub enum SearchResultType {
     OptionChains(Vec<OptionChain>), // not Option b/c language keyword
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SelectedTicker {
     pub ticker: Ticker,
     pub selected_index: usize,
@@ -119,9 +169,24 @@ pub struct SelectedTicker {
 impl From<TickerXML> for SelectedTicker {
     fn from(t: TickerXML) -> SelectedTicker {
         let ticker = Ticker {
-            symbol: t.QuoteData.Product.symbol,
-            bid: t.QuoteData.All.bid,
-            ask: t.QuoteData.All.ask,
+            symbol: t.quote_data.product.symbol,
+            date_time: t.quote_data.date_time,
+            security_type: t.quote_data.product.security_type,
+            primary_exchange: t.quote_data.info.primary_exchange,
+            declared_dividend: t.quote_data.info.declared_dividend,
+            dividend: t.quote_data.info.dividend,
+            ex_dividend_date: t.quote_data.info.ex_dividend_date,
+            bid: t.quote_data.info.bid,
+            ask: t.quote_data.info.ask,
+            open: t.quote_data.info.open,
+            high52: t.quote_data.info.high52,
+            week52_hi_date: t.quote_data.info.week52_hi_date,
+            low52: t.quote_data.info.low52,
+            week52_low_date: t.quote_data.info.week52_low_date,
+            pe: t.quote_data.info.pe,
+            eps: t.quote_data.info.eps,
+            beta: t.quote_data.info.beta,
+            ..Default::default()
         };
 
         SelectedTicker {
@@ -174,6 +239,7 @@ pub struct App {
     pub large_search_limit: u32,
     pub search_results: SearchResult,
     pub recently_searched: Vec<SearchResult>,
+    pub search_term: String,
     pub size: Rect,
     pub small_search_limit: u32,
     pub user: Option<User>,
@@ -219,9 +285,10 @@ impl Default for App {
             input_cursor_position: 0,
             liked_ticker_ids_set: HashSet::new(),
             saved_ticker_ids_set: HashSet::new(),
+            search_term: "".to_string(),
             search_results: SearchResult {
-                hovered_block: SearchResults::TradingVolume,
-                selected_block: SearchResults::TradingVolume,
+                // hovered_block: SearchResults::TradingVolume,
+                // selected_block: SearchResults::TradingVolume,
                 selected_ticker_index: None,
                 tickers: None,
                 option_chains: None,
