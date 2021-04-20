@@ -13,7 +13,6 @@ pub fn handler(key: Key, app: &mut App) {
             if let (Some(_tickers), Some(_selected_ticker_index)) =
                 (&app.search_results.tickers, &app.search_results.selected_ticker_index)
                 {
-                    dbg!("ESCP");
                     // On searching for a track, clear the ticker selection
                     app.search_results.selected_ticker_index = Some(0);
 

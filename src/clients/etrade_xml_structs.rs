@@ -46,6 +46,7 @@ pub struct TickerXML {
     pub quote_data: QuoteData,
 }
 
+
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct TickerSearchData {
     pub symbol: String,
@@ -55,12 +56,27 @@ pub struct TickerSearchData {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-pub struct LookupResponse {
-}
-
-#[derive(Debug, Deserialize, PartialEq)]
 pub struct SearchXML {
     #[serde(rename = "Data")]
     pub items: Vec<TickerSearchData>,
+}
+
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+    pub account_id: String,
+    pub account_id_key: String,
+    pub account_mode: String,
+    pub account_desc: String,
+    pub account_name: String,
+    pub account_type: String,
+    pub account_status: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct AccountsListXML {
+    #[serde(rename = "Accounts")]
+    pub accounts: Vec<Account>,
 }
 

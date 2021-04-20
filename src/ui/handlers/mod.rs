@@ -81,7 +81,7 @@ fn handle_block_events(key: Key, app: &mut App) {
 fn handle_escape(app: &mut App) {
     match app.get_current_route().active_block {
         ActiveBlock::SearchResults => {
-            // app.search_results.selected_block = ActiveBlock::SearchResults;
+            app.set_current_route_state(Some(ActiveBlock::Empty), Some(ActiveBlock::WatchList));
         }
         ActiveBlock::TickerDetail => {
             if let (Some(_tickers), Some(_selected_ticker_index)) =

@@ -91,6 +91,8 @@ async fn run(mode: Mode) -> Result<(), RuntimeError> {
         session.full_access_flow(client_config.clone()).await?;
     }
 
+    // session.accounts_list(client_config.clone());
+
     // Now we know we have cached creds
     session.hydrate_local_store(client_config.clone());
     // END SESSION REQUEST ---
@@ -186,7 +188,8 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<(), RuntimeError> {
         }
 
         if is_first_render {
-          app.dispatch(IoEvent::GetPortfolio);
+          app.dispatch(IoEvent::GetAccountsList);
+          // app.dispatch(IoEvent::GetPortfolio);
           is_first_render = false;
         }
 

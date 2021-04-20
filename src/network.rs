@@ -17,6 +17,7 @@ pub enum IoEvent {
     GetNasdaq,
     GetSandP,
     GetPortfolio,
+    GetAccountsList,
     GetUser,
     GetCurrentSavedTickers(Option<u32>),
     CurrentUserSavedTickersContains(Vec<String>),
@@ -61,6 +62,9 @@ where T: Store {
             }
             IoEvent::GetUser => {
                 self.get_user().await;
+            }
+            IoEvent::GetAccountsList => {
+                self.get_accounts_list().await;
             }
             IoEvent::GetDowJones => {
                 self.get_ticker("dji".to_string()).await;
@@ -112,6 +116,19 @@ where T: Store {
             Ok(user) => {
                 let mut app = self.app.lock().await;
                 app.user = Some(user);
+            }
+            Err(e) => {
+                self.handle_error(anyhow!(e)).await;
+            }
+        }
+    }
+
+    async fn get_accounts_list(&mut self) {
+        match self.etrade.accounts_list(&self.session).await {
+            Ok(user_accounts) => {
+                let mut app = self.app.lock().await;
+
+                app.user_accounts = Some(user_accounts.accounts);
             }
             Err(e) => {
                 self.handle_error(anyhow!(e)).await;
@@ -258,6 +275,16 @@ where T: Store {
     }
 
     async fn get_portfolio(&mut self) {
+        match self.etrade.portfolio(&self.session).await {
+            Ok(ticker) => {
+                let mut app = self.app.lock().await;
+
+                // app.push_navigation_stack(RouteId::Portfolio, ActiveBlock::Portfolio);
+            }
+            Err(e) => {
+                self.handle_error(anyhow!(e)).await;
+            }
+        }
         // for sidebar portfolio items
         // match self.etrade.portfolio().await {
         //     Ok(portfolio_tickers) => {

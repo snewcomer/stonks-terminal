@@ -1,4 +1,4 @@
-use crate::clients::etrade_xml_structs::{TickerSearchData, TickerXML};
+use crate::clients::etrade_xml_structs::{Account, TickerSearchData, TickerXML};
 use crate::config::UserConfig;
 use crate::network::IoEvent;
 use crate::utils;
@@ -243,6 +243,7 @@ pub struct App {
     pub size: Rect,
     pub small_search_limit: u32,
     pub user: Option<User>,
+    pub user_accounts: Option<Vec<Account>>,
     pub help_docs_size: u32,
     pub help_menu_page: u32,
     pub help_menu_max_lines: u32,
@@ -294,6 +295,7 @@ impl Default for App {
                 option_chains: None,
             },
             user: None,
+            user_accounts: None,
             help_docs_size: 0,
             help_menu_page: 0,
             help_menu_max_lines: 0,

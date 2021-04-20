@@ -20,11 +20,18 @@ const SANDBOX_ACCESS_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/access_to
 const RENEW_TOKEN_URL_SANDBOX: &str = "https://api.etrade.com/oauth/renew_token";
 const SANDBOX_RENEW_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/renew_token";
 
+const ACCOUNTS_LIST_URL: &str = "https://api.etrade.com/v1/accounts/list";
+const SANDBOX_ACCOUNTS_LIST_URL: &str = "https://apisb.etrade.com/v1/accounts/list";
+
 const QUOTE_URL: &str = "https://api.etrade.com/v1/market/quote";
 const SANDBOX_QUOTE_URL: &str = "https://apisb.etrade.com/v1/market/quote";
 
 const SEARCH_URL: &str = "https://api.etrade.com/v1/market/lookup";
 const SANDBOX_SEARCH_URL: &str = "https://apisb.etrade.com/v1/market/lookup";
+
+const PORTFOLIO_URL: &str = "https://api.etrade.com/v1/accounts/{}/portfolio";
+const SANDBOX_PORTFOLIO_URL: &str = "https://apisb.etrade.com/v1/accounts/{}/portfolio";
+
 
 // const DEFAULT_PORT: u16 = 8888;
 const FILE_NAME: &str = "client.yml";
@@ -110,6 +117,10 @@ pub struct UrlConfig<'a> {
     pub sandbox_quote_url: &'a str,
     pub search_url: &'a str,
     pub sandbox_search_url: &'a str,
+    pub portfolio_url: &'a str,
+    pub sandbox_portfolio_url: &'a str,
+    pub accounts_list_url: &'a str,
+    pub sandbox_accounts_list_url: &'a str,
 }
 
 impl<'a> Default for UrlConfig<'a> {
@@ -125,6 +136,10 @@ impl<'a> Default for UrlConfig<'a> {
             sandbox_quote_url: SANDBOX_QUOTE_URL,
             search_url: SEARCH_URL,
             sandbox_search_url: SANDBOX_SEARCH_URL,
+            portfolio_url: PORTFOLIO_URL,
+            sandbox_portfolio_url: SANDBOX_PORTFOLIO_URL,
+            accounts_list_url: ACCOUNTS_LIST_URL,
+            sandbox_accounts_list_url: SANDBOX_ACCOUNTS_LIST_URL,
         }
     }
 }
@@ -136,6 +151,15 @@ impl<'a> UrlConfig<'a> {
             key,
             token,
         )
+    }
+
+    pub fn accounts_list(&self, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => self.sandbox_accounts_list_url,
+            Mode::Live => self.accounts_list_url,
+        };
+
+        url.to_string()
     }
 
     pub fn etrade_ticker_url(&self, symbol: &str, mode: &Mode) -> String {
@@ -160,6 +184,15 @@ impl<'a> UrlConfig<'a> {
             url,
             search_input,
         )
+    }
+
+    pub fn etrade_portfolio_url(&self, account_id_key: &str, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => format!("https://apisb.etrade.com/v1/accounts/{}/portfolio", account_id_key),
+            Mode::Live => format!("https://api.etrade.com/v1/accounts/{}/portfolio", account_id_key),
+        };
+
+        url
     }
 }
 

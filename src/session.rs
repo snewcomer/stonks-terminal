@@ -221,13 +221,29 @@ where T: Store
             let bd = resp.into_body();
             hyper::body::to_bytes(bd).await.unwrap().to_vec()
         } else {
+            // soft fail
             println!("error {:?}", resp);
             vec![]
         }
+    }
 
-        // let client = reqwest::Client::builder().build()?;
-        // let req = client.get(uri).header(AUTHORIZATION, authorization);
-        // let resp = req.send().await?;
+    pub async fn renew_access_token(&mut self, client_config: ClientConfig, local_data: LocalCredsData) -> Result<(), RuntimeError> {
+        let creds = Credentials::new(client_config.consumer_key.to_string(), client_config.consumer_secret.to_string());
+
+        let uri = match self.mode {
+            Mode::Sandbox => self.urls.sandbox_renew_token_url,
+            Mode::Live => self.urls.renew_token_url,
+        };
+        let oauth_access_creds = self.access_token(uri, &creds, &local_data.request_token_creds, &local_data.verification_code).await;
+        if oauth_access_creds.is_ok() {
+            let oauth_access_creds = oauth_access_creds.unwrap();
+
+            self.save_creds_to_file(&local_data.request_token_creds, oauth_access_creds)?;
+        } else {
+            self.full_access_flow(client_config).await?;
+        }
+
+        Ok(())
     }
 
     fn verify_code(&self, url: String) -> Result<String, RuntimeError> {
@@ -257,25 +273,6 @@ where T: Store
         file.write_all(access_creds.as_bytes())?;
 
         debug!("OAuth saved to in memory store: oauth access key {}", &oauth_access_creds.key);
-
-        Ok(())
-    }
-
-    pub async fn renew_access_token(&mut self, client_config: ClientConfig, local_data: LocalCredsData) -> Result<(), RuntimeError> {
-        let creds = Credentials::new(client_config.consumer_key.to_string(), client_config.consumer_secret.to_string());
-
-        let uri = match self.mode {
-            Mode::Sandbox => self.urls.sandbox_renew_token_url,
-            Mode::Live => self.urls.renew_token_url,
-        };
-        let oauth_access_creds = self.access_token(uri, &creds, &local_data.request_token_creds, &local_data.verification_code).await;
-        if oauth_access_creds.is_ok() {
-            let oauth_access_creds = oauth_access_creds.unwrap();
-
-            self.save_creds_to_file(&local_data.request_token_creds, oauth_access_creds)?;
-        } else {
-            self.full_access_flow(client_config).await?;
-        }
 
         Ok(())
     }
