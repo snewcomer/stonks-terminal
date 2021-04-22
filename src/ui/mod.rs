@@ -417,27 +417,29 @@ pub fn draw_portfolio_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     let mut state = ListState::default();
     state.select(app.selected_ticker_index);
 
-    let list_items: Vec<ListItem> = MAJOR_INDICES
-        .iter()
-        .map(|i| ListItem::new(Span::raw(*i)))
-        .collect();
+    if let Some(tickers) = &app.portfolio_tickers {
+        let list_items: Vec<ListItem> = tickers
+            .iter()
+            .map(|i| ListItem::new(Span::raw(i.symbol.to_string())))
+            .collect();
 
-    let current_route = app.get_current_route();
-    let highlight_state = (
-        current_route.active_block == ActiveBlock::Portfolio,
-        current_route.hovered_block == ActiveBlock::Portfolio,
-    );
+        let current_route = app.get_current_route();
+        let highlight_state = (
+            current_route.active_block == ActiveBlock::Portfolio,
+            current_route.hovered_block == ActiveBlock::Portfolio,
+        );
 
-    let list = List::new(list_items)
-        .block(
-            Block::default()
-            .title(Span::styled("Portfolio", get_color(highlight_state, app.user_config.theme)))
-            .borders(Borders::ALL)
-            .border_style(get_color(highlight_state, app.user_config.theme)),
-        )
-        .style(Style::default().fg(app.user_config.theme.text))
-        .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
-    f.render_stateful_widget(list, layout_chunk, &mut state);
+        let list = List::new(list_items)
+            .block(
+                Block::default()
+                .title(Span::styled("Portfolio", get_color(highlight_state, app.user_config.theme)))
+                .borders(Borders::ALL)
+                .border_style(get_color(highlight_state, app.user_config.theme)),
+            )
+            .style(Style::default().fg(app.user_config.theme.text))
+            .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
+        f.render_stateful_widget(list, layout_chunk, &mut state);
+    }
 }
 
 pub fn draw_input_and_help_box<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)

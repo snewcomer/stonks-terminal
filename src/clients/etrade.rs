@@ -63,22 +63,21 @@ impl Etrade {
         }
     }
 
-    pub async fn portfolio<T: Store>(&self, session: &Session<T>) -> ClientResult<Vec<Ticker>> {
-        todo!();
-        // let uri = session.urls.etrade_search_url(search_term, &session.mode);
-        // let authorization_header = self.build_authorization_header(&uri, &session);
+    pub async fn portfolio<T: Store>(&self, account_id_key: &str, session: &Session<T>) -> ClientResult<etrade_xml_structs::PortfolioXML> {
+        let uri = session.urls.etrade_portfolio_url(account_id_key, &session.mode);
+        let authorization_header = self.build_authorization_header(&uri, &session);
 
-        // let resp = session.send_request(&uri, authorization_header).await.unwrap();
-        // if resp.status().as_u16() / 100 == 2 {
-        //     let bd = resp.into_body();
-        //     let bytes = hyper::body::to_bytes(bd).await?;
-        //     let results: etrade_xml_structs::SearchXML = serde_xml_rs::from_reader(&bytes[..])?;
-        //     Ok(results.items)
-        // } else if resp.status().as_u16() == 401 {
-        //     return Err(RuntimeError { message: "request failed".to_string() });
-        // } else {
-        //     return Err(RuntimeError { message: "request failed".to_string() });
-        // }
+        let resp = session.send_request(&uri, authorization_header).await.unwrap();
+        if resp.status().as_u16() / 100 == 2 {
+            let bd = resp.into_body();
+            let bytes = hyper::body::to_bytes(bd).await?;
+            let results: etrade_xml_structs::PortfolioXML = serde_xml_rs::from_reader(&bytes[..])?;
+            Ok(results)
+        } else if resp.status().as_u16() == 401 {
+            return Err(RuntimeError { message: "request failed".to_string() });
+        } else {
+            return Err(RuntimeError { message: "request failed".to_string() });
+        }
     }
 
     pub async fn search<T: Store>(&self, session: &Session<T>, search_term: &String) -> ClientResult<Vec<etrade_xml_structs::TickerSearchData>> {

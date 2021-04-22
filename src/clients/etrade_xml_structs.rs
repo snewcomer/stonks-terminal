@@ -75,8 +75,44 @@ pub struct Account {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
+pub struct Accounts {
+    #[serde(rename = "Account")]
+    pub accounts: Vec<Account>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct AccountsListXML {
     #[serde(rename = "Accounts")]
-    pub accounts: Vec<Account>,
+    pub accounts: Accounts,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountProduct {
+    pub symbol: String,
+    pub security_type: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Position {
+    pub position_id: String,
+    #[serde(rename = "Product")]
+    pub product: AccountProduct,
+    pub symbol_description: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountPortfolio {
+    pub account_id: String,
+    #[serde(rename = "Position")]
+    pub positions: Vec<Position>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct PortfolioXML {
+    #[serde(rename = "AccountPortfolio")]
+    pub account_portfolio: AccountPortfolio,
 }
 

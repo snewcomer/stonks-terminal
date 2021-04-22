@@ -1,4 +1,4 @@
-use crate::clients::etrade_xml_structs::{Account, TickerSearchData, TickerXML};
+use crate::clients::etrade_xml_structs::{Account, Position, TickerSearchData, TickerXML};
 use crate::config::UserConfig;
 use crate::network::IoEvent;
 use crate::utils;
@@ -115,6 +115,16 @@ impl From<TickerSearchData> for Ticker {
         Ticker {
             symbol: t.symbol,
             description: t.description,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Position> for Ticker {
+    fn from(t: Position) -> Ticker {
+        Ticker {
+            symbol: t.product.symbol,
+            description: t.symbol_description,
             ..Default::default()
         }
     }

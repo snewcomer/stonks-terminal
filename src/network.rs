@@ -128,7 +128,7 @@ where T: Store {
             Ok(user_accounts) => {
                 let mut app = self.app.lock().await;
 
-                app.user_accounts = Some(user_accounts.accounts);
+                app.user_accounts = Some(user_accounts.accounts.accounts);
             }
             Err(e) => {
                 self.handle_error(anyhow!(e)).await;
@@ -275,28 +275,17 @@ where T: Store {
     }
 
     async fn get_portfolio(&mut self) {
-        match self.etrade.portfolio(&self.session).await {
-            Ok(ticker) => {
-                let mut app = self.app.lock().await;
-
-                // app.push_navigation_stack(RouteId::Portfolio, ActiveBlock::Portfolio);
-            }
-            Err(e) => {
-                self.handle_error(anyhow!(e)).await;
+        let mut app = self.app.lock().await;
+        if let Some(accounts) = &app.user_accounts {
+            match self.etrade.portfolio(&accounts.first().unwrap().account_id_key, &self.session).await {
+                Ok(portfolio) => {
+                    app.portfolio_tickers = Some(portfolio.account_portfolio.positions.into_iter().map(|t| t.into()).collect::<Vec<Ticker>>());
+                }
+                Err(e) => {
+                    self.handle_error(anyhow!(e)).await;
+                }
             }
         }
-        // for sidebar portfolio items
-        // match self.etrade.portfolio().await {
-        //     Ok(portfolio_tickers) => {
-                let mut app = self.app.lock().await;
-
-                // app.portfolio_tickers = Some(portfolio_tickers);
-                app.selected_ticker_index = Some(0);
-            // }
-            // Err(e) => {
-            //     self.handle_error(anyhow!(e)).await;
-            // }
-        // }
     }
 
     async fn refresh_authentication(&mut self) {

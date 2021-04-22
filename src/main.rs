@@ -189,7 +189,7 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<(), RuntimeError> {
 
         if is_first_render {
           app.dispatch(IoEvent::GetAccountsList);
-          // app.dispatch(IoEvent::GetPortfolio);
+          app.dispatch(IoEvent::GetPortfolio);
           is_first_render = false;
         }
 

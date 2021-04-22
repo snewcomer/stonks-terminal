@@ -13,6 +13,7 @@ pub fn handler(key: Key, app: &mut App) {
     }
     k if common_key_events::down_event(k) => match app.get_current_route().hovered_block {
       ActiveBlock::WatchList => {
+        app.selected_ticker_index = Some(0);
         app.set_current_route_state(None, Some(ActiveBlock::Portfolio));
       }
       _ => {}
