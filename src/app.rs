@@ -1,4 +1,5 @@
 use crate::clients::etrade_xml_structs::{Account, Position, TickerSearchData, TickerXML};
+use crate::clients::etrade_json_structs::{Instrument, Order, OrderType, OrderAction, PreviewOrderRequest, PreviewOrderResponse, Product};
 use crate::config::UserConfig;
 use crate::network::IoEvent;
 use crate::utils;
@@ -7,15 +8,20 @@ use std::{
     collections::HashSet,
 };
 use chrono::prelude::*;
-use chrono::Duration;
 use serde::{Serialize, Deserialize};
 use tui::layout::Rect;
+use std::str::FromStr;
 
 pub const MAJOR_INDICES: [&str; 3] = [
     "Nasdaq",
     "DJIA",
     "S&P",
 ];
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum DialogContext {
+  TickerDetail,
+}
 
 #[derive(Debug)]
 pub struct Route {
@@ -39,12 +45,16 @@ pub enum RouteId {
     RecentlySearched,
     Search,
     TickerDetail,
+    OrderForm,
+    ConfirmOrderForm,
+    AccountList,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ActiveBlock {
     Analysis,
-    Dialog,
+    ConfirmOrderForm,
+    Dialog(DialogContext),
     Empty,
     Error,
     HelpMenu,
@@ -52,6 +62,8 @@ pub enum ActiveBlock {
     Input,
     WatchList,
     Portfolio,
+    AccountList,
+    OrderForm,
     RecentlySearched,
     SearchResults,
     BasicView,
@@ -128,6 +140,80 @@ impl From<Position> for Ticker {
             ..Default::default()
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct PreviewOrder {
+    pub account_id: String,
+    pub quantity: String,
+    pub symbol: String,
+    pub order_type: OrderType,
+    pub order_action: OrderAction,
+}
+
+// impl From<PreviewOrderRequest> for PreviewOrder {
+//     fn from(t: PreviewOrderRequest) -> PreviewOrder {
+//         PreviewOrder {
+//             account_id: t.order[0].account_id.to_owned(),
+//             quantity: t.order[0].instrument[0].quantity.to_owned(),
+//             symbol: t.order[0].instrument[0].product.symbol.to_owned(),
+//             order_type: OrderType::from_str(&t.order_type).unwrap(),
+//             order_action: OrderAction::from_str(&t.order[0].instrument[0].order_action.to_owned()),
+//         }
+//     }
+// }
+
+impl From<PreviewOrderResponse> for PreviewOrder {
+    fn from(t: PreviewOrderResponse) -> PreviewOrder {
+        PreviewOrder {
+            account_id: t.order[0].account_id.to_owned(),
+            quantity: t.order[0].instrument[0].quantity.to_owned(),
+            symbol: t.order[0].instrument[0].product.symbol.to_owned(),
+            order_type: OrderType::from_str(&t.order_type).unwrap(),
+            order_action: OrderAction::from_str(&t.order[0].instrument[0].order_action.to_owned()).unwrap(),
+        }
+    }
+}
+
+impl From<PreviewOrder> for PreviewOrderRequest {
+    fn from(t: PreviewOrder) -> PreviewOrderRequest {
+        PreviewOrderRequest {
+            order_type: t.order_type.to_string(),
+            client_order_id: utils::simple_id(),
+            order: vec![Order {
+                account_id: "".to_string(),
+                all_or_none: false,
+                price_type: "LIMIT".to_string(),
+                order_term: "GOOD_FOR_DAY".to_string(),
+                market_session: "REGULAR".to_string(),
+                stop_price: "".to_string(),
+                limit_price: "".to_string(),
+                instrument: vec![
+                    Instrument {
+                        quantity: t.quantity,
+                        quantity_type: "QUANTITY".to_string(),
+                        order_action: t.order_action.to_string(),
+                        product: Product {
+                            symbol: t.symbol,
+                            security_type: "EQ".to_string(),
+                        },
+
+                        cancel_quantity: None,
+                        reserve_order: None,
+                        symbol_description: None,
+                    }
+                ],
+                ..Default::default()
+            }]
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum OrderFormState {
+    Initial,
+    Quantity,
+    Submit,
 }
 
 #[derive(Clone, Debug)]
@@ -240,11 +326,20 @@ pub struct App {
     pub saved_ticker_ids_set: HashSet<String>,
 
     pub active_ticker_index: Option<usize>,
-    pub selected_ticker_index: Option<usize>,
+    pub selected_watch_list_index: Option<usize>,
+
     pub selected_ticker: Option<SelectedTicker>,
+
+    pub user_accounts: Option<Vec<Account>>,
+    pub selected_account_index: Option<usize>,
+    pub active_account_index: Option<usize>,
 
     pub library: Library,
     pub portfolio_tickers: Option<Vec<Ticker>>,
+
+    pub preview_order_form: Option<PreviewOrder>,
+    pub preview_order_ticker: Option<String>,
+    pub order_form_state: OrderFormState,
 
     pub large_search_limit: u32,
     pub search_results: SearchResult,
@@ -253,7 +348,6 @@ pub struct App {
     pub size: Rect,
     pub small_search_limit: u32,
     pub user: Option<User>,
-    pub user_accounts: Option<Vec<Account>>,
     pub help_docs_size: u32,
     pub help_menu_page: u32,
     pub help_menu_max_lines: u32,
@@ -284,9 +378,19 @@ impl Default for App {
 
             portfolio_tickers: None,
 
+            preview_order_form: None,
+            preview_order_ticker: None,
+            order_form_state: OrderFormState::Initial,
+
             selected_ticker: None,
+
             active_ticker_index: None,
-            selected_ticker_index: None,
+            selected_watch_list_index: None,
+
+            user_accounts: None,
+            active_account_index: None,
+            selected_account_index: None,
+
             navigation_stack: vec![DEFAULT_ROUTE],
             large_search_limit: 20,
             small_search_limit: 4,
@@ -305,7 +409,6 @@ impl Default for App {
                 option_chains: None,
             },
             user: None,
-            user_accounts: None,
             help_docs_size: 0,
             help_menu_page: 0,
             help_menu_max_lines: 0,
@@ -331,6 +434,40 @@ impl App {
             user_config,
             etrade_token_expiry,
             ..App::default()
+        }
+    }
+
+    pub fn new_preview_order(&mut self, order_type: OrderType, order_action: OrderAction) {
+        if let Some(active_account_index) = self.active_account_index {
+            let account_id = &self.user_accounts.as_ref().unwrap()[active_account_index].account_id;
+            self.preview_order_form = Some(PreviewOrder {
+                account_id: account_id.to_string(),
+                order_type,
+                order_action,
+                symbol: "".to_string(),
+                quantity: "".to_string(),
+            })
+        }
+    }
+
+    pub fn cancel_preview_order(&mut self) {
+        // TODO: confirm modal
+        self.preview_order_form = None;
+    }
+
+    pub fn add_next_order_field(&mut self, key: &str, value: String) {
+        match key {
+            "symbol" => {
+                if let Some(ref mut order_form) = self.preview_order_form {
+                    order_form.symbol = value;
+                }
+            }
+            "quantity" => {
+                if let Some(ref mut order_form) = self.preview_order_form {
+                    order_form.quantity = value;
+                }
+            }
+            _ => {},
         }
     }
 

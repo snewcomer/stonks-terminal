@@ -1,3 +1,5 @@
+mod utils;
+
 mod clients;
 mod config;
 mod session;
@@ -5,12 +7,11 @@ mod stonks_error;
 mod network;
 mod store;
 mod ui;
-mod utils;
 mod app;
 use config::{ClientConfig, UserConfig};
 use store::AuthInMemoryStore;
 use crate::clients::{Etrade};
-use crate::session::{Credentials, Mode, Session};
+use crate::session::{Mode, Session};
 use crate::store::{Store};
 use crate::network::{Network, IoEvent};
 use std::sync::mpsc::Receiver;
@@ -20,7 +21,6 @@ use crossterm::{
   cursor::MoveTo,
   event::{DisableMouseCapture, EnableMouseCapture},
   execute,
-  style::Print,
   terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
   ExecutableCommand,
 };
@@ -32,10 +32,10 @@ use log::debug;
 use tokio::sync::Mutex;
 use ui::{event::Events, event::Event, key::Key};
 use tui::{
-  backend::{Backend, CrosstermBackend},
+  backend::{CrosstermBackend},
   Terminal,
 };
-use app::{ActiveBlock, App};
+use app::{ActiveBlock, App, RouteId};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {
@@ -91,8 +91,6 @@ async fn run(mode: Mode) -> Result<(), RuntimeError> {
         session.full_access_flow(client_config.clone()).await?;
     }
 
-    // session.accounts_list(client_config.clone());
-
     // Now we know we have cached creds
     session.hydrate_local_store(client_config.clone());
     // END SESSION REQUEST ---
@@ -140,7 +138,7 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<(), RuntimeError> {
 
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-    terminal.hide_cursor()?;
+    // terminal.hide_cursor()?;
 
     let events = Events::new();
     let mut is_first_render = true;
@@ -157,7 +155,7 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<(), RuntimeError> {
               2,
             ))?;
         } else {
-            terminal.hide_cursor()?;
+            // terminal.hide_cursor()?;
         }
 
         terminal.draw(|mut f| ui::draw_main(&mut f, &app))?;
@@ -192,7 +190,6 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<(), RuntimeError> {
           app.dispatch(IoEvent::GetPortfolio);
           is_first_render = false;
         }
-
     }
 
     terminal.show_cursor()?;

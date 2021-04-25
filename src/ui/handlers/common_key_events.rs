@@ -1,4 +1,4 @@
-use crate::app::{ActiveBlock, App, RouteId};
+use crate::app::{ActiveBlock, App, OrderFormState, RouteId};
 use super::super::key::Key;
 
 pub fn down_event(key: Key) -> bool {
@@ -92,6 +92,13 @@ pub fn handle_right_event(app: &mut App) {
             }
             RouteId::TickerDetail => {
                 app.set_current_route_state(None, Some(ActiveBlock::TickerDetail));
+            }
+            RouteId::OrderForm => {
+                if let OrderFormState::Quantity = app.order_form_state {
+                    app.set_current_route_state(Some(ActiveBlock::Input), Some(ActiveBlock::Input));
+                } else {
+                    app.set_current_route_state(None, Some(ActiveBlock::OrderForm));
+                }
             }
             RouteId::Error => {}
             RouteId::Analysis => {}

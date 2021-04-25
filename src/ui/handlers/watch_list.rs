@@ -38,17 +38,14 @@ pub fn handler(key: Key, app: &mut App) {
             // Nasdaq
             0 => {
                 app.dispatch(IoEvent::GetNasdaq);
-                app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
             }
             // DJIA
             1 => {
                 app.dispatch(IoEvent::GetDowJones);
-                app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
             }
             // S&P
             2 => {
                 app.dispatch(IoEvent::GetSandP);
-                app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
             }
             // This is required because Rust can't tell if this pattern in exhaustive
             _ => {}

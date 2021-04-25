@@ -64,6 +64,10 @@ pub enum Key {
   Char(char),
   Ctrl(char),
   Alt(char),
+
+  ShiftEnter,
+  ShiftTab,
+
   Unkown,
 }
 
@@ -175,6 +179,17 @@ impl From<event::KeyEvent> for Key {
         code: event::KeyCode::F(n),
         ..
       } => Key::from_f(n),
+
+      event::KeyEvent {
+        code: event::KeyCode::Enter,
+        modifiers: event::KeyModifiers::SHIFT,
+      } => Key::ShiftEnter,
+
+      event::KeyEvent {
+        code: event::KeyCode::Tab,
+        modifiers: event::KeyModifiers::SHIFT,
+      } => Key::ShiftTab,
+
       event::KeyEvent {
         code: event::KeyCode::Enter,
         ..

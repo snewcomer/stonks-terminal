@@ -18,13 +18,14 @@ pub enum IoEvent {
     GetSandP,
     GetPortfolio,
     GetAccountsList,
+    GetTicker(String),
+    SubmitPreviewRequest,
     GetUser,
     GetCurrentSavedTickers(Option<u32>),
     CurrentUserSavedTickersContains(Vec<String>),
     CurrentUserSavedTickerDelete(String),
     CurrentUserSavedTickerAdd(String),
     UpdateSearchLimits(u32, u32),
-    GetTicker(String),
 }
 
 #[derive(Clone)]
@@ -81,6 +82,9 @@ where T: Store {
             IoEvent::GetSearchResults(search_term) => {
                 self.get_search_results(search_term).await;
             }
+            IoEvent::SubmitPreviewRequest => {
+                self.preview_order_request().await;
+            }
             IoEvent::GetCurrentSavedTickers(offset) => {
                 self.get_current_user_saved_tickers(offset).await;
             }
@@ -128,7 +132,11 @@ where T: Store {
             Ok(user_accounts) => {
                 let mut app = self.app.lock().await;
 
+                let account_len = user_accounts.accounts.accounts.len();
                 app.user_accounts = Some(user_accounts.accounts.accounts);
+                if account_len > 0 {
+                    app.active_account_index = Some(0);
+                }
             }
             Err(e) => {
                 self.handle_error(anyhow!(e)).await;
@@ -283,6 +291,24 @@ where T: Store {
                 }
                 Err(e) => {
                     self.handle_error(anyhow!(e)).await;
+                }
+            }
+        }
+    }
+
+    async fn preview_order_request(&mut self) {
+        let mut app = self.app.lock().await;
+        if let Some(active_account_index) = app.active_account_index {
+            let account_id_key = &app.user_accounts.as_ref().unwrap()[active_account_index].account_id_key;
+            if let Some(preview_order_form) = &app.preview_order_form {
+                match self.etrade.preview_order_request(account_id_key, &self.session, preview_order_form.clone().into()).await {
+                    Ok(preview_order_response) => {
+                        app.preview_order_form = Some(preview_order_response.into());
+                        app.push_navigation_stack(RouteId::ConfirmOrderForm, ActiveBlock::ConfirmOrderForm);
+                    }
+                    Err(e) => {
+                        app.push_navigation_stack(RouteId::Error, ActiveBlock::Error);
+                    }
                 }
             }
         }

@@ -1,12 +1,14 @@
 use super::etrade_xml_structs;
+use super::etrade_json_structs;
 use chrono::prelude::*;
 use derive_builder::Builder;
-use crate::app::{Ticker, SearchType, User};
+use crate::app::{Ticker, User};
 use crate::config::ClientConfig;
 use crate::stonks_error::RuntimeError;
 use crate::session::{Credentials, Session};
 use crate::store::Store;
 use std::{io::{Write}};
+use serde_json::json;
 
 pub type ClientResult<T> = Result<T, RuntimeError>;
 
@@ -111,6 +113,38 @@ impl Etrade {
 
     pub async fn current_user(&self) -> ClientResult<User> {
         todo!();
+    }
+
+    pub async fn preview_order_request<T: Store>(&self, account_id_key: &str, session: &Session<T>, preview_order_request: etrade_json_structs::PreviewOrderRequest) -> ClientResult<etrade_json_structs::PreviewOrderResponse> {
+        let uri = session.urls.etrade_order_preview_url(account_id_key, &session.mode);
+
+        let authorization_header = self.build_authorization_header(&uri, &session);
+        let body = json!(preview_order_request);
+        let resp = session.send_post_request(&uri, authorization_header, body.to_string()).await?;
+        let status = resp.status();
+        let bd = resp.into_body();
+        let bytes = hyper::body::to_bytes(bd).await?;
+        std::fs::write("res.txt", &std::str::from_utf8(&bytes).unwrap());
+        if status.as_u16() / 100 == 2 {
+            // let bd = resp.into_body();
+            // let bytes = hyper::body::to_bytes(bd).await?;
+            let results: etrade_json_structs::PreviewOrderResponse = serde_json::from_reader(&bytes[..])?;
+            Ok(results)
+        } else {
+            return Err(RuntimeError { message: "Request for Preview Order failed".to_string() });
+        }
+    }
+
+    pub async fn place_order_request<T: Store>(&self, account_id_key: &str, session: &Session<T>) -> ClientResult<etrade_json_structs::PlaceOrderResponse> {
+        let uri = session.urls.etrade_order_preview_url(account_id_key, &session.mode);
+
+        let authorization_header = self.build_authorization_header(&uri, &session);
+        let resp = session.send_request(&uri, authorization_header).await?;
+        let bd = resp.into_body();
+        let bytes = hyper::body::to_bytes(bd).await?;
+        let results: etrade_json_structs::PlaceOrderResponse = serde_xml_rs::from_reader(&bytes[..])?;
+
+        Ok(results)
     }
 
     pub async fn current_user_saved_tickers(&self, search_limit: u32, offset: Option<u32>) -> ClientResult<Vec<Ticker>> {

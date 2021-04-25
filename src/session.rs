@@ -227,6 +227,19 @@ where T: Store
         }
     }
 
+    pub async fn send_post_request(&self, uri: &str, authorization: String, body: String) -> Result<Response<Body>, hyper::Error> {
+        std::fs::write("req.txt", format!("{} \n {}", body.to_string(), &uri));
+        let req = Request::builder()
+            .method(Method::POST)
+            .uri(uri)
+            .header(AUTHORIZATION, authorization)
+            .body(Body::from(body));
+
+        let req = self.client.request(req.unwrap());
+        let resp = req.await;
+        resp
+    }
+
     pub async fn renew_access_token(&mut self, client_config: ClientConfig, local_data: LocalCredsData) -> Result<(), RuntimeError> {
         let creds = Credentials::new(client_config.consumer_key.to_string(), client_config.consumer_secret.to_string());
 

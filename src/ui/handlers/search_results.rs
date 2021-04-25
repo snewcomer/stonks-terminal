@@ -68,17 +68,6 @@ pub fn handler(key: Key, app: &mut App) {
                     }
                 };
         }
-        Key::Char('D') => {
-            if let (Some(tickers), Some(selected_index)) = (&app.search_results.tickers, app.search_results.selected_ticker_index)
-            {
-                let selected_ticker = &tickers[selected_index].symbol;
-                app.dialog = Some(selected_ticker.clone());
-                app.confirm = false;
-
-                let route = app.get_current_route().id.clone();
-                app.push_navigation_stack(route, ActiveBlock::Dialog);
-            }
-        }
         _ => {}
     }
 }

@@ -194,6 +194,24 @@ impl<'a> UrlConfig<'a> {
 
         url
     }
+
+    pub fn etrade_order_preview_url(&self, account_id_key: &str, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => format!("https://apisb.etrade.com/v1/accounts/{}/orders/preview.json", account_id_key),
+            Mode::Live => format!("https://api.etrade.com/v1/accounts/{}/orders/preview.json", account_id_key),
+        };
+
+        url
+    }
+
+    pub fn etrade_order_place_url(&self, account_id_key: &str, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => format!("https://apisb.etrade.com/v1/accounts/{}/orders/place.json", account_id_key),
+            Mode::Live => format!("https://api.etrade.com/v1/accounts/{}/orders/place.json", account_id_key),
+        };
+
+        url
+    }
 }
 
 #[derive(Clone, Debug)]

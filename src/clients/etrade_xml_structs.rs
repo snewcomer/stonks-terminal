@@ -1,5 +1,5 @@
 use crate::app::{SelectedTicker, Ticker};
-use serde::{Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -115,4 +115,3 @@ pub struct PortfolioXML {
     #[serde(rename = "AccountPortfolio")]
     pub account_portfolio: AccountPortfolio,
 }
-

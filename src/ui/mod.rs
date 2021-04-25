@@ -5,7 +5,7 @@ pub mod util;
 
 pub use key::Key;
 
-use crate::app::{ActiveBlock, App, MAJOR_INDICES, RouteId};
+use crate::app::{ActiveBlock, App, MAJOR_INDICES, OrderFormState, RouteId};
 use util::{get_color, get_percentage_width, date_from_timestamp};
 use tui::{
     backend::Backend,
@@ -17,60 +17,60 @@ use tui::{
 };
 
 pub enum TableId {
-  TickerDetail,
-  TickerList,
-  RecentlySearched,
+    TickerDetail,
+    TickerList,
+    RecentlySearched,
 }
 
 #[derive(PartialEq)]
 pub enum ColumnId {
-  None,
-  Symbol,
-  SecurityType,
+    None,
+    Symbol,
+    SecurityType,
 }
 
 impl Default for ColumnId {
-  fn default() -> Self {
-    ColumnId::None
-  }
+    fn default() -> Self {
+        ColumnId::None
+    }
 }
 
 pub struct TableHeader<'a> {
-  id: TableId,
-  items: Vec<TableHeaderItem<'a>>,
+    id: TableId,
+    items: Vec<TableHeaderItem<'a>>,
 }
 
 impl TableHeader<'_> {
-  pub fn get_index(&self, id: ColumnId) -> Option<usize> {
-    self.items.iter().position(|item| item.id == id)
-  }
+    pub fn get_index(&self, id: ColumnId) -> Option<usize> {
+        self.items.iter().position(|item| item.id == id)
+    }
 }
 
 #[derive(Default)]
 pub struct TableHeaderItem<'a> {
-  id: ColumnId,
-  text: &'a str,
-  width: u16,
+    id: ColumnId,
+    text: &'a str,
+    width: u16,
 }
 
 pub struct TableItem {
-  id: String,
-  data: Vec<String>,
+    id: String,
+    data: Vec<String>,
 }
 
 pub fn draw_main<B>(f: &mut Frame<B>, app: &App)
     where B: Backend,
-{
-  let parent_layout = Layout::default()
-      .direction(Direction::Vertical)
-      .constraints([Constraint::Length(3), Constraint::Min(1)].as_ref())
-      .margin(1)
-      .split(f.size());
+          {
+              let parent_layout = Layout::default()
+                  .direction(Direction::Vertical)
+                  .constraints([Constraint::Length(3), Constraint::Min(1)].as_ref())
+                  .margin(1)
+                  .split(f.size());
 
-  draw_input_and_help_box(f, &app, parent_layout[0]);
-  // Nested main block with potential routes
-  draw_user_blocks(f, &app, parent_layout[1]);
-}
+              draw_input_and_help_box(f, &app, parent_layout[0]);
+              // Nested main block with potential routes
+              draw_user_blocks(f, &app, parent_layout[1]);
+          }
 
 pub fn draw_user_blocks<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     where
@@ -81,7 +81,7 @@ pub fn draw_user_blocks<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         .constraints([Constraint::Percentage(20), Constraint::Percentage(80)].as_ref())
         .split(layout_chunk);
 
-    draw_tickers_block(f, app, chunks[0]);
+    draw_sidebar_block(f, app, chunks[0]);
     draw_a_route(f, app, chunks[1]);
 }
 
@@ -92,18 +92,44 @@ pub fn draw_a_route<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     let current_route = app.get_current_route();
 
     match current_route.id {
+        RouteId::Error => {
+            draw_error(f, app, layout_chunk)
+        }
+        RouteId::AccountList => {
+            draw_account_list(f, app, layout_chunk)
+        }
+        RouteId::OrderForm => {
+            draw_order_form(f, app, layout_chunk)
+        }
         RouteId::TickerDetail if app.selected_ticker.is_some() => {
-           draw_ticker_detail(f, app, layout_chunk)
+            draw_ticker_detail(f, app, layout_chunk)
         }
         RouteId::Search => {
-           draw_search_results(f, app, layout_chunk)
+            draw_search_results(f, app, layout_chunk)
         }
         RouteId::Home => {
-           draw_home(f, app, layout_chunk)
+            draw_home(f, app, layout_chunk)
         }
         _ => draw_home(f, app, layout_chunk)
 
     }
+}
+
+pub fn draw_error<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
+    where
+    B: Backend,
+{
+    let current_route = app.get_current_route();
+    let highlight_state = (
+        current_route.active_block == ActiveBlock::Home,
+        current_route.hovered_block == ActiveBlock::Home,
+        );
+
+    let welcome = Block::default()
+        .title(Span::styled("Woops", get_color(highlight_state, app.user_config.theme)))
+        .borders(Borders::ALL)
+        .border_style(get_color(highlight_state, app.user_config.theme));
+    f.render_widget(welcome, layout_chunk);
 }
 
 pub fn draw_ticker_detail<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
@@ -114,7 +140,7 @@ pub fn draw_ticker_detail<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     let highlight_state = (
         current_route.active_block == ActiveBlock::TickerDetail,
         current_route.hovered_block == ActiveBlock::TickerDetail,
-    );
+        );
 
     let selected_ticker = app.selected_ticker.as_ref();
     let ticker = &selected_ticker.unwrap().ticker;
@@ -209,7 +235,10 @@ pub fn draw_ticker_detail<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         ]
     };
 
-    let rows = [i0, i1, i2, i3, i4, i5].iter().map(|i| Row::new(i.data.clone()).style(style).height(3)).collect::<Vec<Row>>();
+    let rows = [i0, i1, i2, i3, i4, i5]
+        .iter()
+        .map(|i| Row::new(i.data.clone()).style(style).height(3))
+        .collect::<Vec<Row>>();
 
     // let widths = header
     //     .items
@@ -223,20 +252,103 @@ pub fn draw_ticker_detail<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         //     .style(Style::default().fg(app.user_config.theme.header)),
         // )
         .block(
-          Block::default()
+            Block::default()
             .borders(Borders::ALL)
             .style(Style::default().fg(app.user_config.theme.text))
             .title(Span::styled(
-              ticker.symbol.to_owned(),
-              get_color(highlight_state, app.user_config.theme),
-            ))
+                    ticker.symbol.to_owned(),
+                    get_color(highlight_state, app.user_config.theme),
+                    ))
             .border_style(get_color(highlight_state, app.user_config.theme)),
-        )
+            )
         .style(Style::default().fg(app.user_config.theme.text))
         // .widths(&widths);
         .widths(&[Constraint::Percentage(33), Constraint::Percentage(33), Constraint::Percentage(33)]);
 
     f.render_widget(table, layout_chunk);
+}
+
+pub fn draw_order_form<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
+    where
+    B: Backend,
+{
+    let current_route = app.get_current_route();
+    let highlight_state = (
+        current_route.active_block == ActiveBlock::OrderForm,
+        current_route.hovered_block == ActiveBlock::OrderForm,
+        );
+
+    let mut text = vec![];
+    if let Some(ref order_form) = app.preview_order_form {
+        let symbol = app.preview_order_ticker.as_ref().unwrap_or(&"Error".to_string()).to_string();
+        text.push(
+            Spans::from(vec![
+                        Span::raw("Symbol ➤ "),
+                        Span::styled(symbol, Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            ])
+            );
+        text.push(
+            Spans::from(vec![
+                        Span::raw(" "),
+                        Span::raw("Order Type ➤ "),
+                        Span::styled(order_form.order_type.to_string(), Style::default().add_modifier(Modifier::BOLD))
+            ])
+            );
+    }
+
+    if let OrderFormState::Quantity = app.order_form_state {
+        text.push(
+            Spans::from(vec![
+                        Span::raw("1. Input number of shares"),
+            ]),
+
+            );
+    } else if let OrderFormState::Submit = app.order_form_state {
+        if let Some(ref order_form) = app.preview_order_form {
+            text.push(
+                Spans::from(vec![
+                            Span::raw("1. Number of shares"),
+                            Span::raw(": "),
+                            Span::raw(order_form.quantity.to_owned()),
+                ])
+                );
+            text.push(
+                Spans::from(vec![
+                            Span::raw("2. Yay! Press Enter to Submit"),
+                ])
+                );
+        }
+    }
+
+    let input = Paragraph::new(text).block(
+        Block::default()
+        .title("Order Form")
+        .borders(Borders::ALL)
+        .border_style(get_color(highlight_state, app.user_config.theme)),
+        ).wrap(Wrap { trim: true });
+
+    f.render_widget(input, layout_chunk);
+
+    // let table = Table::new(rows)
+    //     // .header(
+    //     //   Row::new(header.items.iter().map(|h| h.text))
+    //     //     .style(Style::default().fg(app.user_config.theme.header)),
+    //     // )
+    //     .block(
+    //       Block::default()
+    //         .borders(Borders::ALL)
+    //         .style(Style::default().fg(app.user_config.theme.text))
+    //         .title(Span::styled(
+    //           ticker.symbol.to_owned(),
+    //           get_color(highlight_state, app.user_config.theme),
+    //         ))
+    //         .border_style(get_color(highlight_state, app.user_config.theme)),
+    //     )
+    //     .style(Style::default().fg(app.user_config.theme.text))
+    //     // .widths(&widths);
+    //     .widths(&[Constraint::Percentage(33), Constraint::Percentage(33), Constraint::Percentage(33)]);
+
+    // f.render_widget(table, layout_chunk);
 }
 
 pub fn draw_search_results<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
@@ -250,7 +362,7 @@ pub fn draw_search_results<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     let highlight_state = (
         current_route.active_block == ActiveBlock::SearchResults,
         current_route.hovered_block == ActiveBlock::SearchResults,
-    );
+        );
 
     // let header = TableHeader {
     //     id: TableId::TickerDetail,
@@ -308,47 +420,28 @@ pub fn draw_search_results<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
             .title(Span::styled("Search Results", get_color(highlight_state, app.user_config.theme)))
             .borders(Borders::ALL)
             .border_style(get_color(highlight_state, app.user_config.theme)),
-        )
+            )
         .style(Style::default().fg(app.user_config.theme.text))
         .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
 
     f.render_stateful_widget(list, layout_chunk, &mut state);
-    // let table = Table::new(rows)
-    //     .header(
-    //       Row::new(header.items.iter().map(|h| h.text))
-    //         .style(Style::default().fg(app.user_config.theme.header)),
-    //     )
-    //     .block(
-    //       Block::default()
-    //         .borders(Borders::ALL)
-    //         .style(Style::default().fg(app.user_config.theme.text))
-    //         .title(Span::styled(
-    //           app.search_term.to_owned(),
-    //           get_color(highlight_state, app.user_config.theme),
-    //         ))
-    //         .border_style(get_color(highlight_state, app.user_config.theme)),
-    //     )
-    //     .style(Style::default().fg(app.user_config.theme.text))
-    //     .widths(&widths);
-
-    // f.render_stateful_widget(table, layout_chunk, &mut state);
 }
 
 pub fn draw_home<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     where
     B: Backend,
 {
-    // let chunks = Layout::default()
-    //     .direction(Direction::Vertical)
-    //     .constraints([Constraint::Length(7), Constraint::Length(93)].as_ref())
-    //     .margin(2)
-    //     .split(layout_chunk);
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(2), Constraint::Length(98)].as_ref())
+        .margin(2)
+        .split(layout_chunk);
 
     let current_route = app.get_current_route();
     let highlight_state = (
         current_route.active_block == ActiveBlock::Home,
         current_route.hovered_block == ActiveBlock::Home,
-    );
+        );
 
     let welcome = Block::default()
         .title(Span::styled("Stats", get_color(highlight_state, app.user_config.theme)))
@@ -356,18 +449,44 @@ pub fn draw_home<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         .border_style(get_color(highlight_state, app.user_config.theme));
     f.render_widget(welcome, layout_chunk);
 
-    // // Banner text with correct styling
-    // let mut top_text = Text::from(BANNER);
-    // top_text.patch_style(Style::default().fg(Color::Yellow));
+    // Banner text with correct styling
+    let mut top_text = Text::from("Accounts");
+    top_text.patch_style(Style::default().fg(Color::Yellow));
 
-    // // Contains the banner
-    // let top_text = Paragraph::new(top_text)
-    //     .style(Style::default().fg(Color::Yellow))
-    //     .block(Block::default());
-    // f.render_widget(top_text, chunks[0]);
+    // Contains the banner
+    let top_text = Paragraph::new(top_text)
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default());
+    f.render_widget(top_text, chunks[0]);
+
+
+    if let Some(ref user_accounts) = app.user_accounts {
+        let mut bottom_text = String::new();
+        for acc in user_accounts {
+            bottom_text.push_str(" ➤ ");
+            bottom_text.push_str(&acc.account_id);
+            bottom_text.push_str("\n    ");
+            bottom_text.push_str(&acc.account_id_key);
+            bottom_text.push_str("\n    ");
+            if !acc.account_name.is_empty() {
+                bottom_text.push_str(&acc.account_name);
+                bottom_text.push_str("\n    ");
+            }
+            bottom_text.push_str(&acc.account_type);
+
+            // TODO: add account balance
+            //
+            bottom_text.push_str("\n\n");
+        }
+        let bottom_text = Paragraph::new(bottom_text)
+            .style(Style::default().fg(app.user_config.theme.text))
+            .block(Block::default())
+            .wrap(Wrap { trim: false });
+        f.render_widget(bottom_text, chunks[1]);
+    }
 }
 
-fn draw_tickers_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
+fn draw_sidebar_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     where
     B: Backend,
 {
@@ -378,6 +497,38 @@ fn draw_tickers_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
 
     draw_watch_list_block(f, app, chunks[0]);
     draw_portfolio_block(f, app, chunks[1]);
+}
+
+pub fn draw_account_list<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
+    where
+    B: Backend,
+{
+    let mut state = ListState::default();
+    state.select(Some(0));
+
+    if let Some(accounts) = &app.user_accounts {
+        let list_items: Vec<ListItem> = accounts
+            .iter()
+            .map(|i| ListItem::new(Span::raw(i.account_name.to_string())))
+            .collect();
+
+        let current_route = app.get_current_route();
+        let highlight_state = (
+            current_route.active_block == ActiveBlock::WatchList,
+            current_route.hovered_block == ActiveBlock::WatchList,
+            );
+
+        let list = List::new(list_items)
+            .block(
+                Block::default()
+                .title(Span::styled("Watch List", get_color(highlight_state, app.user_config.theme)))
+                .borders(Borders::ALL)
+                .border_style(get_color(highlight_state, app.user_config.theme)),
+                )
+            .style(Style::default().fg(app.user_config.theme.text))
+            .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
+        f.render_stateful_widget(list, layout_chunk, &mut state);
+    }
 }
 
 pub fn draw_watch_list_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
@@ -396,7 +547,7 @@ pub fn draw_watch_list_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     let highlight_state = (
         current_route.active_block == ActiveBlock::WatchList,
         current_route.hovered_block == ActiveBlock::WatchList,
-    );
+        );
 
     let list = List::new(list_items)
         .block(
@@ -404,7 +555,7 @@ pub fn draw_watch_list_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
             .title(Span::styled("Watch List", get_color(highlight_state, app.user_config.theme)))
             .borders(Borders::ALL)
             .border_style(get_color(highlight_state, app.user_config.theme)),
-        )
+            )
         .style(Style::default().fg(app.user_config.theme.text))
         .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
     f.render_stateful_widget(list, layout_chunk, &mut state);
@@ -415,7 +566,7 @@ pub fn draw_portfolio_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     B: Backend,
 {
     let mut state = ListState::default();
-    state.select(app.selected_ticker_index);
+    state.select(app.selected_watch_list_index);
 
     if let Some(tickers) = &app.portfolio_tickers {
         let list_items: Vec<ListItem> = tickers
@@ -427,7 +578,7 @@ pub fn draw_portfolio_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         let highlight_state = (
             current_route.active_block == ActiveBlock::Portfolio,
             current_route.hovered_block == ActiveBlock::Portfolio,
-        );
+            );
 
         let list = List::new(list_items)
             .block(
@@ -435,7 +586,7 @@ pub fn draw_portfolio_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
                 .title(Span::styled("Portfolio", get_color(highlight_state, app.user_config.theme)))
                 .borders(Borders::ALL)
                 .border_style(get_color(highlight_state, app.user_config.theme)),
-            )
+                )
             .style(Style::default().fg(app.user_config.theme.text))
             .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
         f.render_stateful_widget(list, layout_chunk, &mut state);
@@ -456,16 +607,29 @@ pub fn draw_input_and_help_box<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rec
     let highlight_state = (
         current_route.active_block == ActiveBlock::Input,
         current_route.hovered_block == ActiveBlock::Input,
-    );
+        );
 
     let input_string: String = app.input.iter().collect();
+    let title = match current_route.id {
+        RouteId::OrderForm => {
+            match app.order_form_state {
+                OrderFormState::Quantity => {
+                    "No. of shares"
+                }
+                _ => {
+                    "Preview Order"
+                }
+            }
+        }
+        _ => "Search"
+    };
     let lines = Text::from((&input_string).as_str());
     let input = Paragraph::new(lines).block(
         Block::default()
         .borders(Borders::ALL)
-        .title(Span::styled("Search", get_color(highlight_state, app.user_config.theme)))
+        .title(Span::styled(title, get_color(highlight_state, app.user_config.theme)))
         .border_style(get_color(highlight_state, app.user_config.theme)),
-    );
+        );
     f.render_widget(input, chunks[0]);
 
     let block = Block::default()

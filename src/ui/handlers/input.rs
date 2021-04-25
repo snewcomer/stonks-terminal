@@ -1,6 +1,6 @@
 extern crate unicode_width;
 
-use super::super::super::app::{ActiveBlock, App, RouteId};
+use super::super::super::app::{ActiveBlock, App, OrderFormState, RouteId};
 use crate::ui::key::Key;
 use crate::network::IoEvent;
 use std::convert::TryInto;
@@ -66,7 +66,17 @@ pub fn handler(key: Key, app: &mut App) {
             }
         }
         Key::Esc => {
-            app.set_current_route_state(Some(ActiveBlock::Empty), Some(ActiveBlock::WatchList));
+            if let OrderFormState::Quantity = app.order_form_state {
+                app.order_form_state = OrderFormState::Initial;
+                app.cancel_preview_order();
+
+                // dbl pop to get past initial Order Form State as well from 'B' in TickerDetail
+                // handler - app.push_navigation_stack(RouteId::OrderForm, ActiveBlock::OrderForm);
+                app.pop_navigation_stack();
+                app.pop_navigation_stack();
+            } else {
+                app.set_current_route_state(Some(ActiveBlock::Empty), Some(ActiveBlock::WatchList));
+            }
         }
         Key::Enter => {
             let input_str: String = app.input.iter().collect();
@@ -100,25 +110,31 @@ fn process_input(app: &mut App, input: String) {
         return;
     }
 
-    // On searching for a track, clear the ticker selection
-    app.search_results.selected_ticker_index = Some(0);
+    let current_route = app.get_current_route();
+    match current_route.id {
+        RouteId::OrderForm => {
+            match app.order_form_state {
+                OrderFormState::Quantity => {
+                    app.add_next_order_field("quantity", input);
+                    app.order_form_state = OrderFormState::Submit;
+                    app.input = vec![];
+                    app.input_idx = 0;
+                    app.input_cursor_position = 0;
+                    app.push_navigation_stack(RouteId::OrderForm, ActiveBlock::OrderForm);
+                }
+                _ => {}
+            }
+        }
+        _ => {
+            // On searching for a track, clear the ticker selection
+            app.search_results.selected_ticker_index = Some(0);
 
-    // Default fallback behavior: treat the input as a raw search phrase.
-    app.dispatch(IoEvent::GetSearchResults(input));
-    app.push_navigation_stack(RouteId::Search, ActiveBlock::SearchResults);
+            // Default fallback behavior: treat the input as a raw search phrase.
+            app.dispatch(IoEvent::GetSearchResults(input));
+            app.push_navigation_stack(RouteId::Search, ActiveBlock::SearchResults);
+        }
+    }
 }
-
-// fn etrade_resource_id(base: &str, uri: &str, sep: &str, resource_type: &str) -> (String, bool) {
-//     let uri_prefix = format!("{}{}{}", base, resource_type, sep);
-//     let id_string_with_query_params = uri.trim_start_matches(&uri_prefix);
-//     let query_idx = id_string_with_query_params
-//         .find('?')
-//         .unwrap_or_else(|| id_string_with_query_params.len());
-//     let id_string = id_string_with_query_params[0..query_idx].to_string();
-//     // If the lengths aren't equal, we must have found a match.
-//     let matched = id_string_with_query_params.len() != uri.len() && id_string.len() != uri.len();
-//     (id_string, matched)
-// }
 
 fn compute_character_width(character: char) -> u16 {
     UnicodeWidthChar::width(character)
