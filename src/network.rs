@@ -18,6 +18,7 @@ pub enum IoEvent {
     GetSandP,
     GetPortfolio,
     GetAccountsList,
+    GetAccountBalance,
     GetTicker(String),
     SubmitPreviewRequest,
     GetUser,
@@ -66,6 +67,9 @@ where T: Store {
             }
             IoEvent::GetAccountsList => {
                 self.get_accounts_list().await;
+            }
+            IoEvent::GetAccountBalance => {
+                self.get_accounts_balance().await;
             }
             IoEvent::GetDowJones => {
                 self.get_ticker("dji".to_string()).await;
@@ -137,9 +141,27 @@ where T: Store {
                 if account_len > 0 {
                     app.active_account_index = Some(0);
                 }
+
+                app.dispatch(IoEvent::GetAccountBalance);
             }
             Err(e) => {
                 self.handle_error(anyhow!(e)).await;
+            }
+        }
+    }
+
+    async fn get_accounts_balance(&mut self) {
+        let mut app = self.app.lock().await;
+        if let Some(ref mut accounts) = app.user_accounts {
+            for item in accounts.iter_mut() {
+                match self.etrade.account_balance(&item.account_id_key, &self.session).await {
+                    Ok(account_balance) => {
+                        item.account_balance = Some(account_balance);
+                    }
+                    Err(e) => {
+                        // self.handle_error(anyhow!(e)).await;
+                    }
+                }
             }
         }
     }

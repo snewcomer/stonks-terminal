@@ -1,4 +1,3 @@
-use crate::app::{SelectedTicker, Ticker};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -72,6 +71,8 @@ pub struct Account {
     pub account_name: String,
     pub account_type: String,
     pub account_status: String,
+    // custom client side field for display
+    pub account_balance: Option<AccountBalance>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -114,4 +115,42 @@ pub struct AccountPortfolio {
 pub struct PortfolioXML {
     #[serde(rename = "AccountPortfolio")]
     pub account_portfolio: AccountPortfolio,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Cash {
+    pub funds_for_open_orders_cash: String,
+    pub money_mkt_balance: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RealTimeValues {
+    pub total_account_value: String,
+    pub net_mv: String,
+    pub net_mv_long: String,
+    pub net_mv_short: Option<String>,
+    pub total_long_value: Option<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ComputedBalance {
+    pub cash_available_for_investment: String,
+    pub cash_available_for_withdrawal: String,
+    pub net_cash: String,
+    pub cash_balance: String,
+    #[serde(rename = "RealTimeValues")]
+    pub real_time_values: RealTimeValues,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountBalance {
+    pub account_id: String,
+    #[serde(rename = "Cash")]
+    pub cash: Cash,
+    #[serde(rename = "Computed")]
+    pub computed: Option<ComputedBalance>,
 }

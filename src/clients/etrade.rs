@@ -16,6 +16,12 @@ pub struct EtradeTokenInfo {
     pub expires_at: Option<DateTime<Utc>>
 }
 
+#[derive(oauth::Request)]
+struct AC {
+    instType: String,
+    realTimeNAV: String,
+}
+
 #[derive(Builder, Clone)]
 pub struct Etrade {
     client_creds: Credentials,
@@ -111,14 +117,36 @@ impl Etrade {
         Ok(results)
     }
 
+    pub async fn account_balance<T: Store>(&mut self, account_id_key: &str, session: &Session<T>) -> Result<etrade_xml_structs::AccountBalance, RuntimeError> {
+        let req = AC {
+            instType: "BROKERAGE".to_string(),
+            realTimeNAV: "true".to_string()
+        };
+        let uri = session.urls.account_balance(account_id_key, &session.mode);
+        let authorization_header = oauth::Builder::<_, _>::new(self.client_creds.clone().into(), oauth::HmacSha1)
+            .token(Some(self.get_access_creds(&session)))
+            .get(&session.urls.account_balance_base(&account_id_key, &session.mode), &req);
+
+        let resp = session.send_request(&uri, authorization_header).await?;
+        let bd = resp.into_body();
+        let bytes = hyper::body::to_bytes(bd).await?;
+        let results: etrade_xml_structs::AccountBalance = serde_xml_rs::from_reader(&bytes[..])?;
+
+        Ok(results)
+    }
+
     pub async fn current_user(&self) -> ClientResult<User> {
         todo!();
     }
 
     pub async fn preview_order_request<T: Store>(&self, account_id_key: &str, session: &Session<T>, preview_order_request: etrade_json_structs::PreviewOrderRequest) -> ClientResult<etrade_json_structs::PreviewOrderResponse> {
         let uri = session.urls.etrade_order_preview_url(account_id_key, &session.mode);
+        // OAuth specification explicitly states that only form-encoded data should be included,
+        // not JSON body
+        let authorization_header = oauth::Builder::<_, _>::new(self.client_creds.clone().into(), oauth::HmacSha1)
+            .token(Some(self.get_access_creds(&session)))
+            .post(&uri, &());
 
-        let authorization_header = self.build_authorization_header(&uri, &session);
         let body = json!(preview_order_request);
         let resp = session.send_post_request(&uri, authorization_header, body.to_string()).await?;
         let status = resp.status();

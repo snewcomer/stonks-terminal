@@ -1,5 +1,5 @@
-use crate::clients::etrade_xml_structs::{Account, Position, TickerSearchData, TickerXML};
-use crate::clients::etrade_json_structs::{Instrument, Order, OrderType, OrderAction, PreviewOrderRequest, PreviewOrderResponse, Product};
+use crate::clients::etrade_xml_structs::{Account, AccountBalance, Position, TickerSearchData, TickerXML};
+use crate::clients::etrade_json_structs::{Instrument, Order, OrderType, OrderAction, EtradePreviewOrderRequest, PreviewOrderRequest, PreviewOrderResponse, Product};
 use crate::config::UserConfig;
 use crate::network::IoEvent;
 use crate::utils;
@@ -39,7 +39,6 @@ const DEFAULT_ROUTE: Route = Route {
 #[derive(Clone, PartialEq, Debug)]
 pub enum RouteId {
     Analysis,
-    BasicView,
     Error,
     Home,
     RecentlySearched,
@@ -66,7 +65,6 @@ pub enum ActiveBlock {
     OrderForm,
     RecentlySearched,
     SearchResults,
-    BasicView,
     TickerDetail,
 }
 
@@ -166,7 +164,7 @@ pub struct PreviewOrder {
 impl From<PreviewOrderResponse> for PreviewOrder {
     fn from(t: PreviewOrderResponse) -> PreviewOrder {
         PreviewOrder {
-            account_id: t.order[0].account_id.to_owned(),
+            account_id: "".to_string(),// t.order[0].account_id.to_owned(),
             quantity: t.order[0].instrument[0].quantity.to_owned(),
             symbol: t.order[0].instrument[0].product.symbol.to_owned(),
             order_type: OrderType::from_str(&t.order_type).unwrap(),
@@ -178,33 +176,35 @@ impl From<PreviewOrderResponse> for PreviewOrder {
 impl From<PreviewOrder> for PreviewOrderRequest {
     fn from(t: PreviewOrder) -> PreviewOrderRequest {
         PreviewOrderRequest {
-            order_type: t.order_type.to_string(),
-            client_order_id: utils::simple_id(),
-            order: vec![Order {
-                account_id: "".to_string(),
-                all_or_none: false,
-                price_type: "LIMIT".to_string(),
-                order_term: "GOOD_FOR_DAY".to_string(),
-                market_session: "REGULAR".to_string(),
-                stop_price: "".to_string(),
-                limit_price: "".to_string(),
-                instrument: vec![
-                    Instrument {
-                        quantity: t.quantity,
-                        quantity_type: "QUANTITY".to_string(),
-                        order_action: t.order_action.to_string(),
-                        product: Product {
-                            symbol: t.symbol,
-                            security_type: "EQ".to_string(),
-                        },
+            preview_order_request: EtradePreviewOrderRequest {
+                order_type: t.order_type.to_string(),
+                client_order_id: utils::simple_id(),
+                order: vec![Order {
+                    // account_id: "".to_string(),
+                    // all_or_none: false,
+                    price_type: "MARKET".to_string(),
+                    order_term: "GOOD_FOR_DAY".to_string(),
+                    market_session: "REGULAR".to_string(),
+                    // stop_price: "".to_string(),
+                    // limit_price: "".to_string(),
+                    instrument: vec![
+                        Instrument {
+                            quantity: t.quantity,
+                            quantity_type: "QUANTITY".to_string(),
+                            order_action: t.order_action.to_string(),
+                            product: Product {
+                                symbol: t.symbol,
+                                security_type: "EQ".to_string(),
+                            },
 
-                        cancel_quantity: None,
-                        reserve_order: None,
-                        symbol_description: None,
-                    }
-                ],
-                ..Default::default()
-            }]
+                            // cancel_quantity: None,
+                            // reserve_order: None,
+                            // symbol_description: None,
+                        }
+                    ],
+                    ..Default::default()
+                }]
+            }
         }
     }
 }
@@ -224,19 +224,11 @@ pub enum SearchType {
     OptionChain, // not Option b/c language keyword
 }
 
-pub enum SearchResults {
-    TradingVolume,
-    Eps,
-    Empty
-}
-
 #[derive(Debug)]
 pub struct SearchResult {
     pub tickers: Option<Vec<Ticker>>,
     pub option_chains: Option<Vec<OptionChain>>,
     pub selected_ticker_index: Option<usize>,
-    // pub hovered_block: SearchResults,
-    // pub selected_block: SearchResults,
 }
 
 impl SearchResult {
@@ -245,15 +237,8 @@ impl SearchResult {
             tickers: Some(tickers),
             option_chains: None,
             selected_ticker_index: Some(0),
-            // hovered_block: SearchResults::TradingVolume,
-            // selected_block: SearchResults::Empty,
         }
     }
-}
-
-pub enum SearchResultType {
-    Tickers(Vec<Ticker>),
-    OptionChains(Vec<OptionChain>), // not Option b/c language keyword
 }
 
 #[derive(Debug, Clone)]
@@ -402,8 +387,6 @@ impl Default for App {
             saved_ticker_ids_set: HashSet::new(),
             search_term: "".to_string(),
             search_results: SearchResult {
-                // hovered_block: SearchResults::TradingVolume,
-                // selected_block: SearchResults::TradingVolume,
                 selected_ticker_index: None,
                 tickers: None,
                 option_chains: None,

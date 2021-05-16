@@ -43,12 +43,13 @@ pub struct Product {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Instrument {
-    pub symbol_description: Option<String>,
+    // pub symbol_description: Option<String>,
     pub order_action: String,
     pub quantity: String,
     pub quantity_type: String,
-    pub cancel_quantity: Option<String>,
-    pub reserve_order: Option<bool>,
+    // pub cancel_quantity: Option<String>,
+    // pub reserve_order: Option<bool>,
+    #[serde(rename = "Product")]
     pub product: Product,
 }
 
@@ -56,48 +57,49 @@ pub struct Instrument {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Order {
-    pub all_or_none: bool,
-    pub account_id: String,
-    pub placed_time: String,
-    pub executed_time: String,
-    pub status: String,
-    pub order_number: String,
+    // pub all_or_none: bool,
+    // pub account_id: String,
+    // pub placed_time: String,
+    // pub executed_time: String,
+    // pub status: String,
+    // pub order_number: String,
     pub order_term: String,
     pub market_session: String,
-    pub preview_id: String,
+    // pub preview_id: String,
     pub price_type: String,
-    pub price_value: String,
-    pub limit_price: String,
+    // pub price_value: String,
+    // pub limit_price: String,
     pub stop_price: String,
-    pub net_price: String,
-    pub net_bid: String,
-    pub net_ask: String,
-    pub estimated_total_amount: String,
-    pub estimated_commission: String,
+    // pub net_price: String,
+    // pub net_bid: String,
+    // pub net_ask: String,
+    // pub estimated_total_amount: String,
+    // pub estimated_commission: String,
+    #[serde(rename = "Instrument")]
     pub instrument: Vec<Instrument>,
 }
 
 impl Default for Order {
     fn default() -> Self {
         Self {
-            all_or_none: true,
-            account_id: "".to_string(),
-            placed_time: "".to_string(),
-            executed_time: "".to_string(),
-            status: "".to_string(),
-            order_number: "".to_string(),
+            // all_or_none: true,
+            // account_id: "".to_string(),
+            // placed_time: "".to_string(),
+            // executed_time: "".to_string(),
+            // status: "".to_string(),
+            // order_number: "".to_string(),
             order_term: "".to_string(),
             market_session: "".to_string(),
-            preview_id: "".to_string(),
+            // preview_id: "".to_string(),
             price_type: "".to_string(),
-            price_value: "".to_string(),
-            limit_price: "".to_string(),
+            // price_value: "".to_string(),
+            // limit_price: "".to_string(),
             stop_price: "".to_string(),
-            net_price: "".to_string(),
-            net_bid: "".to_string(),
-            net_ask: "".to_string(),
-            estimated_total_amount: "".to_string(),
-            estimated_commission: "".to_string(),
+            // net_price: "".to_string(),
+            // net_bid: "".to_string(),
+            // net_ask: "".to_string(),
+            // estimated_total_amount: "".to_string(),
+            // estimated_commission: "".to_string(),
             instrument: vec![],
         }
     }
@@ -119,12 +121,19 @@ pub struct PreviewId {
 // }
 
 
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub struct PreviewOrderRequest {
+    #[serde(rename = "PreviewOrderRequest")]
+    pub preview_order_request: EtradePreviewOrderRequest,
+}
+
 // https://apisb.etrade.com/docs/api/order/api-order-v1.html#/definitions/PlaceOrderRequest
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct PreviewOrderRequest {
+pub struct EtradePreviewOrderRequest {
     pub order_type: String,
     pub client_order_id: String,
+    #[serde(rename = "Order")]
     pub order: Vec<Order>,
 }
 

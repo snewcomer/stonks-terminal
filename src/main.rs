@@ -35,7 +35,7 @@ use tui::{
   backend::{CrosstermBackend},
   Terminal,
 };
-use app::{ActiveBlock, App, RouteId};
+use app::{ActiveBlock, App};
 
 #[tokio::main]
 async fn main() -> Result<(), RuntimeError> {

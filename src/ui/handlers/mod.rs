@@ -26,9 +26,6 @@ pub fn handle_app(key: Key, app: &mut App) {
         _ if key == app.user_config.keys.search => {
           app.set_current_route_state(Some(ActiveBlock::Input), Some(ActiveBlock::Input));
         }
-        // _ if key == app.user_config.keys.basic_view => {
-        //   app.push_navigation_stack(RouteId::BasicView, ActiveBlock::BasicView);
-        // }
         _ => handle_block_events(key, app),
     }
 }
@@ -75,9 +72,6 @@ fn handle_block_events(key: Key, app: &mut App) {
         }
     //     ActiveBlock::RecentlyPlayed => {
     //         recently_played::handler(key, app);
-    //     }
-    //     ActiveBlock::BasicView => {
-    //         basic_view::handler(key, app);
     //     }
     //     ActiveBlock::Dialog(_) => {
     //         dialog::handler(key, app);

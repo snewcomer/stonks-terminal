@@ -95,9 +95,6 @@ pub fn draw_a_route<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         RouteId::Error => {
             draw_error(f, app, layout_chunk)
         }
-        RouteId::AccountList => {
-            draw_account_list(f, app, layout_chunk)
-        }
         RouteId::OrderForm => {
             draw_order_form(f, app, layout_chunk)
         }
@@ -119,17 +116,27 @@ pub fn draw_error<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     where
     B: Backend,
 {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(100)].as_ref())
+        .margin(2)
+        .split(layout_chunk);
     let current_route = app.get_current_route();
     let highlight_state = (
         current_route.active_block == ActiveBlock::Home,
         current_route.hovered_block == ActiveBlock::Home,
-        );
+    );
 
     let welcome = Block::default()
-        .title(Span::styled("Woops", get_color(highlight_state, app.user_config.theme)))
+        .title(Span::styled("Something when wrong", get_color(highlight_state, app.user_config.theme)))
         .borders(Borders::ALL)
         .border_style(get_color(highlight_state, app.user_config.theme));
     f.render_widget(welcome, layout_chunk);
+
+    let top_text = Paragraph::new("Esc to go back.")
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default());
+    f.render_widget(top_text, chunks[0]);
 }
 
 pub fn draw_ticker_detail<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
@@ -144,45 +151,6 @@ pub fn draw_ticker_detail<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
 
     let selected_ticker = app.selected_ticker.as_ref();
     let ticker = &selected_ticker.unwrap().ticker;
-
-    // let header = TableHeader {
-    //     id: TableId::TickerDetail,
-    //     items: vec![
-    //         TableHeaderItem {
-    //             id: ColumnId::PrimaryExchange,
-    //             text: "Exchange",
-    //             // We need to subtract the fixed value of the previous column
-    //             width: get_percentage_width(layout_chunk.width, 2.0 / 5.0) - 2,
-    //         },
-    //         TableHeaderItem {
-    //             id: ColumnId::Bid,
-    //             text: "Bid",
-    //             // We need to subtract the fixed value of the previous column
-    //             width: get_percentage_width(layout_chunk.width, 2.0 / 5.0) - 2,
-    //         },
-    //         TableHeaderItem {
-    //             id: ColumnId::Ask,
-    //             text: "Ask",
-    //             width: get_percentage_width(layout_chunk.width, 2.0 / 5.0),
-    //             ..Default::default()
-    //         },
-    //         TableHeaderItem {
-    //             id: ColumnId::PE,
-    //             text: "PE",
-    //             width: get_percentage_width(layout_chunk.width, 2.0 / 5.0),
-    //         },
-    //         TableHeaderItem {
-    //             id: ColumnId::EPS,
-    //             text: "EPS",
-    //             width: get_percentage_width(layout_chunk.width, 2.0 / 5.0),
-    //         },
-    //         TableHeaderItem {
-    //             id: ColumnId::Dividend,
-    //             text: "dividend",
-    //             width: get_percentage_width(layout_chunk.width, 2.0 / 5.0),
-    //         },
-    //     ],
-    // };
 
     let style = Style::default().fg(app.user_config.theme.text); // default styling
 
@@ -280,20 +248,28 @@ pub fn draw_order_form<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
 
     let mut text = vec![];
     if let Some(ref order_form) = app.preview_order_form {
+        let order_action = order_form.order_action.to_string();
+        text.push(
+            Spans::from(vec![
+                        Span::raw("Order Action ➤ "),
+                        Span::styled(order_action, Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            ])
+        );
+
         let symbol = app.preview_order_ticker.as_ref().unwrap_or(&"Error".to_string()).to_string();
         text.push(
             Spans::from(vec![
                         Span::raw("Symbol ➤ "),
                         Span::styled(symbol, Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
             ])
-            );
+        );
         text.push(
             Spans::from(vec![
                         Span::raw(" "),
                         Span::raw("Order Type ➤ "),
                         Span::styled(order_form.order_type.to_string(), Style::default().add_modifier(Modifier::BOLD))
             ])
-            );
+        );
     }
 
     if let OrderFormState::Quantity = app.order_form_state {
@@ -325,7 +301,7 @@ pub fn draw_order_form<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         .title("Order Form")
         .borders(Borders::ALL)
         .border_style(get_color(highlight_state, app.user_config.theme)),
-        ).wrap(Wrap { trim: true });
+    ).wrap(Wrap { trim: true });
 
     f.render_widget(input, layout_chunk);
 
@@ -362,7 +338,7 @@ pub fn draw_search_results<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     let highlight_state = (
         current_route.active_block == ActiveBlock::SearchResults,
         current_route.hovered_block == ActiveBlock::SearchResults,
-        );
+    );
 
     // let header = TableHeader {
     //     id: TableId::TickerDetail,
@@ -472,6 +448,16 @@ pub fn draw_home<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
                 bottom_text.push_str(&acc.account_name);
                 bottom_text.push_str("\n    ");
             }
+            if let Some(balance) = &acc.account_balance {
+                if let Some(computed) = &balance.computed {
+                    bottom_text.push_str("Account Value: ");
+                    bottom_text.push_str(&computed.real_time_values.total_account_value);
+                    bottom_text.push_str("\n    ");
+                    bottom_text.push_str("Net Market Value: ");
+                    bottom_text.push_str(&computed.real_time_values.net_mv);
+                    bottom_text.push_str("\n    ");
+                }
+            }
             bottom_text.push_str(&acc.account_type);
 
             // TODO: add account balance
@@ -497,38 +483,6 @@ fn draw_sidebar_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
 
     draw_watch_list_block(f, app, chunks[0]);
     draw_portfolio_block(f, app, chunks[1]);
-}
-
-pub fn draw_account_list<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
-    where
-    B: Backend,
-{
-    let mut state = ListState::default();
-    state.select(Some(0));
-
-    if let Some(accounts) = &app.user_accounts {
-        let list_items: Vec<ListItem> = accounts
-            .iter()
-            .map(|i| ListItem::new(Span::raw(i.account_name.to_string())))
-            .collect();
-
-        let current_route = app.get_current_route();
-        let highlight_state = (
-            current_route.active_block == ActiveBlock::WatchList,
-            current_route.hovered_block == ActiveBlock::WatchList,
-            );
-
-        let list = List::new(list_items)
-            .block(
-                Block::default()
-                .title(Span::styled("Watch List", get_color(highlight_state, app.user_config.theme)))
-                .borders(Borders::ALL)
-                .border_style(get_color(highlight_state, app.user_config.theme)),
-                )
-            .style(Style::default().fg(app.user_config.theme.text))
-            .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
-        f.render_stateful_widget(list, layout_chunk, &mut state);
-    }
 }
 
 pub fn draw_watch_list_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
@@ -586,7 +540,7 @@ pub fn draw_portfolio_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
                 .title(Span::styled("Portfolio", get_color(highlight_state, app.user_config.theme)))
                 .borders(Borders::ALL)
                 .border_style(get_color(highlight_state, app.user_config.theme)),
-                )
+            )
             .style(Style::default().fg(app.user_config.theme.text))
             .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
         f.render_stateful_widget(list, layout_chunk, &mut state);

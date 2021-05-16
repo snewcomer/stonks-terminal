@@ -162,6 +162,24 @@ impl<'a> UrlConfig<'a> {
         url.to_string()
     }
 
+    pub fn account_balance(&self, account_id_key: &str, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => format!("https://apisb.etrade.com/v1/accounts/{}/balance?instType={}&realTimeNAV=true", account_id_key, "BROKERAGE"),
+            Mode::Live => format!("https://api.etrade.com/v1/accounts/{}/balance?instType={}&realTimeNAV=true", account_id_key, "BROKERAGE"),
+        };
+
+        url
+    }
+
+    pub fn account_balance_base(&self, account_id_key: &str, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => format!("https://apisb.etrade.com/v1/accounts/{}/balance", account_id_key),
+            Mode::Live => format!("https://api.etrade.com/v1/accounts/{}/balance", account_id_key),
+        };
+
+        url
+    }
+
     pub fn etrade_ticker_url(&self, symbol: &str, mode: &Mode) -> String {
         let url = match mode {
             Mode::Sandbox => self.sandbox_quote_url,
