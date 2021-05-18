@@ -7,14 +7,13 @@ use crate::config::ClientConfig;
 use crate::stonks_error::RuntimeError;
 use crate::session::{Credentials, Session};
 use crate::store::Store;
-use std::{io::{Write}};
 use serde_json::json;
 
 pub type ClientResult<T> = Result<T, RuntimeError>;
 
-pub struct EtradeTokenInfo {
-    pub expires_at: Option<DateTime<Utc>>
-}
+// pub struct EtradeTokenInfo {
+//     pub expires_at: Option<DateTime<Utc>>
+// }
 
 #[derive(oauth::Request)]
 struct AC {
@@ -112,6 +111,7 @@ impl Etrade {
         let resp = session.send_request(&uri, authorization_header).await?;
         let bd = resp.into_body();
         let bytes = hyper::body::to_bytes(bd).await?;
+        // std::fs::write("res-account.txt", &std::str::from_utf8(&bytes).unwrap());
         let results: etrade_xml_structs::AccountsListXML = serde_xml_rs::from_reader(&bytes[..])?;
 
         Ok(results)
@@ -135,10 +135,6 @@ impl Etrade {
         Ok(results)
     }
 
-    pub async fn current_user(&self) -> ClientResult<User> {
-        todo!();
-    }
-
     pub async fn preview_order_request<T: Store>(&self, account_id_key: &str, session: &Session<T>, preview_order_request: etrade_json_structs::PreviewOrderRequest) -> ClientResult<etrade_json_structs::PreviewOrderResponse> {
         let uri = session.urls.etrade_order_preview_url(account_id_key, &session.mode);
         // OAuth specification explicitly states that only form-encoded data should be included,
@@ -152,7 +148,7 @@ impl Etrade {
         let status = resp.status();
         let bd = resp.into_body();
         let bytes = hyper::body::to_bytes(bd).await?;
-        std::fs::write("res.txt", &std::str::from_utf8(&bytes).unwrap());
+        // std::fs::write("res.txt", &std::str::from_utf8(&bytes).unwrap());
         if status.as_u16() / 100 == 2 {
             // let bd = resp.into_body();
             // let bytes = hyper::body::to_bytes(bd).await?;
@@ -186,23 +182,19 @@ impl Etrade {
     pub async fn current_user_saved_tickers_delete(&self, ticker_symbols: &[String]) -> ClientResult<()> {
         todo!();
     }
-
-    pub async fn current_user_saved_tickers_contains(&self, ticker_symbols: &Vec<String>) -> ClientResult<Vec<String>> {
-        todo!();
-    }
 }
 
-#[derive(Clone)]
-pub struct EtradeOAuth {
-}
+// #[derive(Clone)]
+// pub struct EtradeOAuth {
+// }
 
-impl EtradeOAuth {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
+// impl EtradeOAuth {
+//     pub fn new() -> Self {
+//         Self {}
+//     }
+// }
 
 
-pub fn get_token() {
+// pub fn get_token() {
 
-}
+// }

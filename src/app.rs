@@ -1,4 +1,4 @@
-use crate::clients::etrade_xml_structs::{Account, AccountBalance, Position, TickerSearchData, TickerXML};
+use crate::clients::etrade_xml_structs::{Account, Position, TickerSearchData, TickerXML};
 use crate::clients::etrade_json_structs::{Instrument, Order, OrderType, OrderAction, EtradePreviewOrderRequest, PreviewOrderRequest, PreviewOrderResponse, Product};
 use crate::config::UserConfig;
 use crate::network::IoEvent;
@@ -514,12 +514,3 @@ impl App {
         self.api_error = e.to_string();
     }
 }
-
-// pub const BANNER: &str = "
-//    _____ ________
-//   / ___/    ||
-//  (__  )     ||
-// /____/      ||
-
-// ";
-

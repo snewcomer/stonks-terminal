@@ -6,52 +6,52 @@ pub mod util;
 pub use key::Key;
 
 use crate::app::{ActiveBlock, App, MAJOR_INDICES, OrderFormState, RouteId};
-use util::{get_color, get_percentage_width, date_from_timestamp};
+use util::{get_color, date_from_timestamp};
 use tui::{
     backend::Backend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, Borders, Clear, Gauge, List, ListItem, ListState, Paragraph, Row, Table, Wrap},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Row, Table, Wrap},
     Frame,
 };
 
-pub enum TableId {
-    TickerDetail,
-    TickerList,
-    RecentlySearched,
-}
+// pub enum TableId {
+//     TickerDetail,
+//     TickerList,
+//     RecentlySearched,
+// }
 
-#[derive(PartialEq)]
-pub enum ColumnId {
-    None,
-    Symbol,
-    SecurityType,
-}
+// #[derive(PartialEq)]
+// pub enum ColumnId {
+//     None,
+//     Symbol,
+//     SecurityType,
+// }
 
-impl Default for ColumnId {
-    fn default() -> Self {
-        ColumnId::None
-    }
-}
+// impl Default for ColumnId {
+//     fn default() -> Self {
+//         ColumnId::None
+//     }
+// }
 
-pub struct TableHeader<'a> {
-    id: TableId,
-    items: Vec<TableHeaderItem<'a>>,
-}
+// pub struct TableHeader<'a> {
+//     id: TableId,
+//     items: Vec<TableHeaderItem<'a>>,
+// }
 
-impl TableHeader<'_> {
-    pub fn get_index(&self, id: ColumnId) -> Option<usize> {
-        self.items.iter().position(|item| item.id == id)
-    }
-}
+// impl TableHeader<'_> {
+//     pub fn get_index(&self, id: ColumnId) -> Option<usize> {
+//         self.items.iter().position(|item| item.id == id)
+//     }
+// }
 
-#[derive(Default)]
-pub struct TableHeaderItem<'a> {
-    id: ColumnId,
-    text: &'a str,
-    width: u16,
-}
+// #[derive(Default)]
+// pub struct TableHeaderItem<'a> {
+//     id: ColumnId,
+//     text: &'a str,
+//     width: u16,
+// }
 
 pub struct TableItem {
     id: String,
@@ -304,27 +304,6 @@ pub fn draw_order_form<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     ).wrap(Wrap { trim: true });
 
     f.render_widget(input, layout_chunk);
-
-    // let table = Table::new(rows)
-    //     // .header(
-    //     //   Row::new(header.items.iter().map(|h| h.text))
-    //     //     .style(Style::default().fg(app.user_config.theme.header)),
-    //     // )
-    //     .block(
-    //       Block::default()
-    //         .borders(Borders::ALL)
-    //         .style(Style::default().fg(app.user_config.theme.text))
-    //         .title(Span::styled(
-    //           ticker.symbol.to_owned(),
-    //           get_color(highlight_state, app.user_config.theme),
-    //         ))
-    //         .border_style(get_color(highlight_state, app.user_config.theme)),
-    //     )
-    //     .style(Style::default().fg(app.user_config.theme.text))
-    //     // .widths(&widths);
-    //     .widths(&[Constraint::Percentage(33), Constraint::Percentage(33), Constraint::Percentage(33)]);
-
-    // f.render_widget(table, layout_chunk);
 }
 
 pub fn draw_search_results<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
@@ -340,25 +319,6 @@ pub fn draw_search_results<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         current_route.hovered_block == ActiveBlock::SearchResults,
     );
 
-    // let header = TableHeader {
-    //     id: TableId::TickerDetail,
-    //     items: vec![
-    //         TableHeaderItem {
-    //             id: ColumnId::Symbol,
-    //             text: "Symbol",
-    //             width: get_percentage_width(layout_chunk.width, 2.0 / 4.0),
-    //         },
-    //         TableHeaderItem {
-    //             id: ColumnId::SecurityType,
-    //             text: "Security Type",
-    //             // We need to subtract the fixed value of the previous column
-    //             width: get_percentage_width(layout_chunk.width, 2.0 / 4.0) - 2,
-    //         },
-    //     ],
-    // };
-
-    // let style = Style::default().fg(app.user_config.theme.text); // default styling
-
     let search_results = &app.search_results;
     if search_results.tickers.is_none() {
         return;
@@ -369,26 +329,6 @@ pub fn draw_search_results<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         .flatten()
         .map(|i| ListItem::new(Span::raw(i.symbol.to_string())))
         .collect();
-
-    // let items = search_results.tickers.as_ref().unwrap().into_iter().map(|res| {
-    //     TableItem {
-    //         id: res.symbol.to_owned(),
-    //         data: vec![
-    //             format!("{}  |  {}", "symbol", res.symbol.to_owned()),
-    //             format!("{}  |  {}", "security type", res.security_type.to_owned()),
-    //         ]
-    //     }
-    // });
-
-    // let rows = items
-    //     .map(|i| Row::new(i.data.clone()).style(style).height(3))
-    //     .collect::<Vec<Row>>();
-
-    // let widths = header
-    //     .items
-    //     .iter()
-    //     .map(|h| Constraint::Length(h.width))
-    //     .collect::<Vec<tui::layout::Constraint>>();
 
     let list = List::new(list_items)
         .block(

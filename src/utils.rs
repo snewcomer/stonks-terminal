@@ -83,30 +83,6 @@ pub fn simple_id() -> String {
 //     };
 // }
 
-// use chrono::{TimeZone, Duration};
-// // use chrono_tz::{EST5EDT};
-// use chrono_tz::America::New_York;
-// use std::ops::Add;
-
-// // today midnight auth_token expires
-// // convert to midnight
-// pub fn midnight_eastern(days: i64) -> DateTime<chrono_tz::Tz> {
-//     let now = Utc::now().naive_utc() + Duration::days(days);//).date().and_hms(0, 0, 0);
-//     // let mut est = EST5EDT.from_utc_datetime(&now).date().add(Duration::days(days)).and_hms(0, 0, 0);
-//     // est = est.with_timezone(&Utc);
-//     // let mut est = New_York.from_utc_datetime(&now).date().add(Duration::days(days)).and_hms(0, 0, 0);
-//     est
-// }
-
-// pub fn now_eastern() -> DateTime<chrono_tz::Tz> {
-//     // TODO take into account ESD vs EST (fall winter)
-//     let now = Utc::now().naive_utc();//).date().and_hms(0, 0, 0);
-//     // get us to EST/EDT time
-//     let mut est = EST5EDT.from_utc_datetime(&now).date().add(Duration::days(days)).and_hms(0, 0, 0);
-//     // est = est.with_timezone(&Utc);
-//     est
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -228,7 +228,7 @@ where T: Store
     }
 
     pub async fn send_post_request(&self, uri: &str, authorization: String, body: String) -> Result<Response<Body>, hyper::Error> {
-        std::fs::write("req-post.txt", format!("{} \n {} \n {}", body.to_string(), &uri, authorization));
+        // std::fs::write("req-post.txt", format!("{} \n {} \n {}", body.to_string(), &uri, authorization));
         let req = Request::builder()
             .method(Method::POST)
             .uri(uri)

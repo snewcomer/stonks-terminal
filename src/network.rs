@@ -1,5 +1,5 @@
-use crate::app::{ActiveBlock, App, WatchList, RouteId, SearchType, SearchResult, SearchResultType, SelectedTicker, Ticker};
-use crate::clients::etrade::{Etrade, EtradeTokenInfo};
+use crate::app::{ActiveBlock, App, RouteId, SearchResult, Ticker};
+use crate::clients::etrade::{Etrade};
 use crate::config::ClientConfig;
 use crate::session::Session;
 use crate::store::Store;
@@ -21,12 +21,9 @@ pub enum IoEvent {
     GetAccountBalance,
     GetTicker(String),
     SubmitPreviewRequest,
-    GetUser,
     GetCurrentSavedTickers(Option<u32>),
-    CurrentUserSavedTickersContains(Vec<String>),
     CurrentUserSavedTickerDelete(String),
     CurrentUserSavedTickerAdd(String),
-    UpdateSearchLimits(u32, u32),
 }
 
 #[derive(Clone)]
@@ -62,9 +59,6 @@ where T: Store {
             IoEvent::RefreshAuthentication => {
                 self.refresh_authentication().await;
             }
-            IoEvent::GetUser => {
-                self.get_user().await;
-            }
             IoEvent::GetAccountsList => {
                 self.get_accounts_list().await;
             }
@@ -92,15 +86,8 @@ where T: Store {
             IoEvent::GetCurrentSavedTickers(offset) => {
                 self.get_current_user_saved_tickers(offset).await;
             }
-            IoEvent::UpdateSearchLimits(large_search_limit, small_search_limit) => {
-                self.large_search_limit = large_search_limit;
-                self.small_search_limit = small_search_limit;
-            }
             IoEvent::GetTicker(ticker_id) => {
                 self.get_ticker(ticker_id).await;
-            }
-            IoEvent::CurrentUserSavedTickersContains(ticker_ids) => {
-                self.current_user_saved_tickers_contains(ticker_ids).await;
             }
             IoEvent::CurrentUserSavedTickerDelete(show_id) => {
                 self.current_user_saved_ticker_delete(show_id).await;
@@ -117,18 +104,6 @@ where T: Store {
     async fn handle_error(&mut self, e: anyhow::Error) {
         let mut app = self.app.lock().await;
         app.handle_error(e);
-    }
-
-    async fn get_user(&mut self) {
-        match self.etrade.current_user().await {
-            Ok(user) => {
-                let mut app = self.app.lock().await;
-                app.user = Some(user);
-            }
-            Err(e) => {
-                self.handle_error(anyhow!(e)).await;
-            }
-        }
     }
 
     async fn get_accounts_list(&mut self) {
@@ -162,27 +137,6 @@ where T: Store {
                         // self.handle_error(anyhow!(e)).await;
                     }
                 }
-            }
-        }
-    }
-
-    async fn current_user_saved_tickers_contains(&mut self, ids: Vec<String>) {
-        match self.etrade.current_user_saved_tickers_contains(&ids).await {
-            Ok(is_saved_vec) => {
-                let mut app = self.app.lock().await;
-                for (i, id) in ids.iter().enumerate() {
-                    if let Some(_is_liked) = is_saved_vec.get(i) {
-                        app.liked_ticker_ids_set.insert(id.to_string());
-                    } else {
-                        // The song is not liked, so check if it should be removed
-                        if app.liked_ticker_ids_set.contains(id) {
-                            app.liked_ticker_ids_set.remove(id);
-                        }
-                    };
-                }
-            }
-            Err(e) => {
-                self.handle_error(anyhow!(e)).await;
             }
         }
     }
@@ -222,42 +176,6 @@ where T: Store {
                 self.handle_error(anyhow!(e)).await;
             }
         }
-    }
-
-    async fn toggle_save_ticker(&mut self, ticker_id: String) {
-        match self
-            .etrade
-            .current_user_saved_tickers_contains(&vec![ticker_id.clone()])
-            .await
-            {
-                Ok(saved) => {
-                    if saved.contains(&ticker_id) {
-                        match self.etrade.current_user_saved_tickers_delete(&[ticker_id.clone()]).await {
-                            Ok(()) => {
-                                let mut app = self.app.lock().await;
-                                app.liked_ticker_ids_set.remove(&ticker_id);
-                            }
-                            Err(e) => {
-                                self.handle_error(anyhow!(e)).await;
-                            }
-                        }
-                    } else {
-                        match self.etrade.current_user_saved_tickers_add(&[ticker_id.clone()]).await {
-                            Ok(()) => {
-                                // TODO: This should ideally use the same logic as `self.current_user_saved_tickers_contains`
-                                let mut app = self.app.lock().await;
-                                app.liked_ticker_ids_set.insert(ticker_id);
-                            }
-                            Err(e) => {
-                                self.handle_error(anyhow!(e)).await;
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    self.handle_error(anyhow!(e)).await;
-                }
-            };
     }
 
     pub async fn current_user_saved_ticker_delete(&mut self, ticker_id: String) {

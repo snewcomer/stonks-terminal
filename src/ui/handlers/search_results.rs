@@ -1,5 +1,5 @@
 use super::{
-    super::super::app::{ActiveBlock, App},
+    super::super::app::{App},
     super::key::Key,
     common_key_events,
 };
