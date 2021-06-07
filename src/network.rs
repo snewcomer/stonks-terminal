@@ -257,7 +257,7 @@ where T: Store {
     async fn refresh_authentication(&mut self) {
         let mut client_config = ClientConfig::new();
         // ask user for configuration details
-        if let Ok(_) = client_config.load_config() {
+        if let Ok(_) = client_config.load_config(&self.session.mode) {
             let _ = self.session.full_access_flow(client_config).await;
         }
 

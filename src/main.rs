@@ -67,7 +67,7 @@ async fn main() -> Result<(), RuntimeError> {
 async fn run(mode: Mode) -> Result<(), RuntimeError> {
     let mut client_config = ClientConfig::new();
     // ask user for configuration details
-    let config_paths = client_config.load_config()?;
+    let config_paths = client_config.load_config(&mode)?;
     let user_config = UserConfig::new();
 
     env_logger::init();

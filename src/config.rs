@@ -35,9 +35,11 @@ const SANDBOX_PORTFOLIO_URL: &str = "https://apisb.etrade.com/v1/accounts/{}/por
 
 // const DEFAULT_PORT: u16 = 8888;
 const FILE_NAME: &str = "client.yml";
+const SANDBOX_FILE_NAME: &str = "client-sandbox.yml";
 const CONFIG_DIR: &str = ".config";
 const APP_CONFIG_DIR: &str = "stonks-terminal";
 const TOKEN_CACHE_FILE: &str = ".stonks_terminal_token_cache.json";
+const SANDBOX_TOKEN_CACHE_FILE: &str = ".stonks_terminal_token_cache-sandbox.json";
 
 #[derive(Clone)]
 pub struct KeyBindings {
@@ -252,8 +254,8 @@ impl ClientConfig {
         }
     }
 
-    pub fn load_config(&mut self) -> Result<ConfigPaths, RuntimeError> {
-        let paths = self.get_or_build_paths()?;
+    pub fn load_config(&mut self, mode: &Mode) -> Result<ConfigPaths, RuntimeError> {
+        let paths = self.get_or_build_paths(&mode)?;
         if paths.config_file_path.exists() {
             debug!("Loading keys from config");
 
@@ -293,7 +295,7 @@ impl ClientConfig {
         Ok(paths)
     }
 
-    fn get_or_build_paths(&self) -> Result<ConfigPaths, RuntimeError> {
+    fn get_or_build_paths(&self, mode: &Mode) -> Result<ConfigPaths, RuntimeError> {
         match dirs::home_dir() {
             Some(home) => {
                 let path = Path::new(&home);
@@ -307,8 +309,17 @@ impl ClientConfig {
                     fs::create_dir(&app_config_dir)?;
                 }
 
-                let config_file_path = &app_config_dir.join(FILE_NAME);
-                let token_cache_path = &app_config_dir.join(TOKEN_CACHE_FILE);
+                let creds_file = match mode {
+                    Mode::Live => FILE_NAME,
+                    Mode::Sandbox => SANDBOX_FILE_NAME,
+                };
+                let config_file_path = &app_config_dir.join(creds_file);
+
+                let token_file = match mode {
+                    Mode::Live => TOKEN_CACHE_FILE,
+                    Mode::Sandbox => SANDBOX_TOKEN_CACHE_FILE,
+                };
+                let token_cache_path = &app_config_dir.join(token_file);
 
                 let paths = ConfigPaths {
                     config_file_path: config_file_path.to_path_buf(),
