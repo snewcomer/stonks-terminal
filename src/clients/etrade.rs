@@ -1,8 +1,7 @@
 use super::etrade_xml_structs;
 use super::etrade_json_structs;
-use chrono::prelude::*;
 use derive_builder::Builder;
-use crate::app::{Ticker, User};
+use crate::app::{Ticker};
 use crate::config::ClientConfig;
 use crate::stonks_error::RuntimeError;
 use crate::session::{Credentials, Session};
@@ -167,6 +166,31 @@ impl Etrade {
         let bd = resp.into_body();
         let bytes = hyper::body::to_bytes(bd).await?;
         let results: etrade_json_structs::PlaceOrderResponse = serde_xml_rs::from_reader(&bytes[..])?;
+
+        Ok(results)
+    }
+
+    pub async fn alerts<T: Store>(&mut self, session: &Session<T>) -> Result<etrade_xml_structs::AlertsXML, RuntimeError> {
+        let uri = session.urls.alerts(&session.mode);
+        let authorization_header = self.build_authorization_header(&uri, &session);
+
+        let resp = session.send_request(&uri, authorization_header).await?;
+        let bd = resp.into_body();
+        let bytes = hyper::body::to_bytes(bd).await?;
+        // std::fs::write("res-account.txt", &std::str::from_utf8(&bytes).unwrap());
+        let results: etrade_xml_structs::AlertsXML = serde_xml_rs::from_reader(&bytes[..])?;
+
+        Ok(results)
+    }
+
+    pub async fn alert<T: Store>(&mut self, notification_id: &str, session: &Session<T>) -> Result<etrade_xml_structs::AlertDetails, RuntimeError> {
+        let uri = session.urls.alert(notification_id, &session.mode);
+        let authorization_header = self.build_authorization_header(&uri, &session);
+
+        let resp = session.send_request(&uri, authorization_header).await?;
+        let bd = resp.into_body();
+        let bytes = hyper::body::to_bytes(bd).await?;
+        let results: etrade_xml_structs::AlertDetails = serde_xml_rs::from_reader(&bytes[..])?;
 
         Ok(results)
     }

@@ -1,5 +1,5 @@
 use super::{
-    super::super::app::{ActiveBlock, App, RouteId, MAJOR_INDICES},
+    super::super::app::{App, MAJOR_INDICES},
     common_key_events,
 };
 use super::super::key::Key;

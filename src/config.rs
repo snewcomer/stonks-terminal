@@ -23,6 +23,9 @@ const SANDBOX_RENEW_TOKEN_URL: &str = "https://apisb.etrade.com/oauth/renew_toke
 const ACCOUNTS_LIST_URL: &str = "https://api.etrade.com/v1/accounts/list";
 const SANDBOX_ACCOUNTS_LIST_URL: &str = "https://apisb.etrade.com/v1/accounts/list";
 
+const ALERTS_URL: &str = "https://api.etrade.com/v1/user/alerts";
+const SANDBOX_ALERTS_URL: &str = "https://apisb.etrade.com/v1/user/alerts";
+
 const QUOTE_URL: &str = "https://api.etrade.com/v1/market/quote";
 const SANDBOX_QUOTE_URL: &str = "https://apisb.etrade.com/v1/market/quote";
 
@@ -123,6 +126,8 @@ pub struct UrlConfig<'a> {
     pub sandbox_portfolio_url: &'a str,
     pub accounts_list_url: &'a str,
     pub sandbox_accounts_list_url: &'a str,
+    pub alerts_url: &'a str,
+    pub sandbox_alerts_url: &'a str,
 }
 
 impl<'a> Default for UrlConfig<'a> {
@@ -142,6 +147,8 @@ impl<'a> Default for UrlConfig<'a> {
             sandbox_portfolio_url: SANDBOX_PORTFOLIO_URL,
             accounts_list_url: ACCOUNTS_LIST_URL,
             sandbox_accounts_list_url: SANDBOX_ACCOUNTS_LIST_URL,
+            alerts_url: ALERTS_URL,
+            sandbox_alerts_url: SANDBOX_ALERTS_URL,
         }
     }
 }
@@ -159,6 +166,24 @@ impl<'a> UrlConfig<'a> {
         let url = match mode {
             Mode::Sandbox => self.sandbox_accounts_list_url,
             Mode::Live => self.accounts_list_url,
+        };
+
+        url.to_string()
+    }
+
+    pub fn alerts(&self, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => self.sandbox_alerts_url,
+            Mode::Live => self.alerts_url,
+        };
+
+        url.to_string()
+    }
+
+    pub fn alert(&self, notification_id: &str, mode: &Mode) -> String {
+        let url = match mode {
+            Mode::Sandbox => format!("https://apisb.etrade.com/v1/user/alerts/{}", notification_id),
+            Mode::Live => format!("https://api.etrade.com/v1/user/alerts/{}", notification_id),
         };
 
         url.to_string()

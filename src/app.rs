@@ -1,4 +1,4 @@
-use crate::clients::etrade_xml_structs::{Account, Position, TickerSearchData, TickerXML};
+use crate::clients::etrade_xml_structs::{Account, AlertDetails, Position, TickerSearchData, TickerXML, Alert};
 use crate::clients::etrade_json_structs::{Instrument, Order, OrderType, OrderAction, EtradePreviewOrderRequest, PreviewOrderRequest, PreviewOrderResponse, Product};
 use crate::config::UserConfig;
 use crate::network::IoEvent;
@@ -42,6 +42,8 @@ pub enum RouteId {
     Error,
     Home,
     RecentlySearched,
+    Notifications,
+    NotificationDetail,
     Search,
     TickerDetail,
     OrderForm,
@@ -59,6 +61,8 @@ pub enum ActiveBlock {
     HelpMenu,
     Home,
     Input,
+    Notifications,
+    NotificationDetail,
     WatchList,
     Portfolio,
     AccountList,
@@ -241,6 +245,19 @@ impl SearchResult {
     }
 }
 
+// #[derive(Clone, Debug, Serialize, Deserialize)]
+// pub struct Notification {
+//     id: String,
+//     create_time: String,
+//     subject: String,
+//     msg_text: String,
+//     read_time: String,
+//     delete_time: String,
+//     symbol: String,
+//     next: String,
+//     prev: String,
+// }
+
 #[derive(Debug, Clone)]
 pub struct SelectedTicker {
     pub ticker: Ticker,
@@ -313,11 +330,17 @@ pub struct App {
     pub active_ticker_index: Option<usize>,
     pub selected_watch_list_index: Option<usize>,
 
+    pub selected_notification: Option<AlertDetails>,
+    pub selected_notification_index: usize,
+
     pub selected_ticker: Option<SelectedTicker>,
 
     pub user_accounts: Option<Vec<Account>>,
     pub selected_account_index: Option<usize>,
     pub active_account_index: Option<usize>,
+
+    pub notifications: Option<Vec<Alert>>,
+    pub total_notifications: Option<u32>,
 
     pub library: Library,
     pub portfolio_tickers: Option<Vec<Ticker>>,
@@ -367,6 +390,9 @@ impl Default for App {
             preview_order_ticker: None,
             order_form_state: OrderFormState::Initial,
 
+            selected_notification: None,
+            selected_notification_index: 0,
+
             selected_ticker: None,
 
             active_ticker_index: None,
@@ -375,6 +401,9 @@ impl Default for App {
             user_accounts: None,
             active_account_index: None,
             selected_account_index: None,
+
+            notifications: None,
+            total_notifications: None,
 
             navigation_stack: vec![DEFAULT_ROUTE],
             large_search_limit: 20,

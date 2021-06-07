@@ -20,6 +20,8 @@ pub enum IoEvent {
     GetAccountsList,
     GetAccountBalance,
     GetTicker(String),
+    GetNotifications,
+    GetNotification(String),
     SubmitPreviewRequest,
     GetCurrentSavedTickers(Option<u32>),
     CurrentUserSavedTickerDelete(String),
@@ -88,6 +90,12 @@ where T: Store {
             }
             IoEvent::GetTicker(ticker_id) => {
                 self.get_ticker(ticker_id).await;
+            }
+            IoEvent::GetNotifications => {
+                self.get_notifications().await;
+            }
+            IoEvent::GetNotification(notification_id) => {
+                self.get_notification(notification_id).await;
             }
             IoEvent::CurrentUserSavedTickerDelete(show_id) => {
                 self.current_user_saved_ticker_delete(show_id).await;
@@ -215,6 +223,35 @@ where T: Store {
 
                 app.selected_ticker = Some(ticker.into());
                 app.push_navigation_stack(RouteId::TickerDetail, ActiveBlock::TickerDetail);
+            }
+            Err(e) => {
+                self.handle_error(anyhow!(e)).await;
+            }
+        }
+    }
+
+    async fn get_notifications(&mut self) {
+        match self.etrade.alerts(&self.session).await {
+            Ok(alerts) => {
+                let mut app = self.app.lock().await;
+
+                app.notifications = Some(alerts.alerts);
+                app.total_notifications = Some(alerts.total_alerts);
+                app.push_navigation_stack(RouteId::Notifications, ActiveBlock::Notifications);
+            }
+            Err(e) => {
+                self.handle_error(anyhow!(e)).await;
+            }
+        }
+    }
+
+    async fn get_notification(&mut self, notification_id: String) {
+        match self.etrade.alert(&notification_id, &self.session).await {
+            Ok(alert) => {
+                let mut app = self.app.lock().await;
+
+                app.selected_notification = Some(alert);
+                app.push_navigation_stack(RouteId::NotificationDetail, ActiveBlock::NotificationDetail);
             }
             Err(e) => {
                 self.handle_error(anyhow!(e)).await;

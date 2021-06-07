@@ -17,6 +17,7 @@ pub fn handler(key: Key, app: &mut App) {
 
             // Dbl push so Esc "back" works
             app.push_navigation_stack(RouteId::OrderForm, ActiveBlock::OrderForm);
+            // focus input to enter # of shares
             app.push_navigation_stack(RouteId::OrderForm, ActiveBlock::Input);
         }
         Key::Char('S') => {
@@ -29,6 +30,7 @@ pub fn handler(key: Key, app: &mut App) {
 
             // Dbl push so Esc "back" works
             app.push_navigation_stack(RouteId::OrderForm, ActiveBlock::OrderForm);
+            // focus input to enter # of shares
             app.push_navigation_stack(RouteId::OrderForm, ActiveBlock::Input);
         }
         k if common_key_events::right_event(k) => common_key_events::handle_right_event(app),

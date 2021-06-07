@@ -154,3 +154,31 @@ pub struct AccountBalance {
     #[serde(rename = "Computed")]
     pub computed: Option<ComputedBalance>,
 }
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AlertsXML {
+    pub total_alerts: u32,
+    #[serde(rename = "Alert")]
+    pub alerts: Vec<Alert>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Alert {
+    pub id: String,
+    pub create_time: String,
+    pub subject: String,
+    pub status: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AlertDetails {
+    pub id: String,
+    pub create_time: String,
+    pub subject: String,
+    pub msg_text: String,
+    pub read_time: String,
+    pub delete_time: String,
+}

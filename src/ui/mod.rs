@@ -107,6 +107,12 @@ pub fn draw_a_route<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
         RouteId::Home => {
             draw_home(f, app, layout_chunk)
         }
+        RouteId::Notifications => {
+            draw_notifications(f, app, layout_chunk)
+        }
+        RouteId::NotificationDetail => {
+            draw_notification_detail(f, app, layout_chunk)
+        }
         _ => draw_home(f, app, layout_chunk)
 
     }
@@ -336,7 +342,7 @@ pub fn draw_search_results<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
             .title(Span::styled("Search Results", get_color(highlight_state, app.user_config.theme)))
             .borders(Borders::ALL)
             .border_style(get_color(highlight_state, app.user_config.theme)),
-            )
+        )
         .style(Style::default().fg(app.user_config.theme.text))
         .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
 
@@ -357,7 +363,7 @@ pub fn draw_home<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     let highlight_state = (
         current_route.active_block == ActiveBlock::Home,
         current_route.hovered_block == ActiveBlock::Home,
-        );
+    );
 
     let welcome = Block::default()
         .title(Span::styled("Stats", get_color(highlight_state, app.user_config.theme)))
@@ -412,6 +418,99 @@ pub fn draw_home<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     }
 }
 
+pub fn draw_notifications<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
+    where
+    B: Backend,
+{
+    let current_route = app.get_current_route();
+    let highlight_state = (
+        current_route.active_block == ActiveBlock::Notifications,
+        current_route.hovered_block == ActiveBlock::Notifications,
+    );
+
+    let mut state = ListState::default();
+    state.select(Some(app.selected_notification_index));
+
+    if let Some(ref notifications) = app.notifications {
+        let mut list_items = vec![];
+        for notif in notifications {
+            let mut bottom_text = String::new();
+            bottom_text.push_str(" · ");
+            bottom_text.push_str(&notif.status);
+            bottom_text.push_str(": ");
+            bottom_text.push_str(&notif.subject);
+            if let Ok(timestamp) = notif.create_time.parse::<i64>() {
+                bottom_text.push_str(" on ");
+                bottom_text.push_str(&date_from_timestamp(timestamp));
+            }
+            bottom_text.push_str("\n ");
+            bottom_text.push_str("\n ");
+
+            list_items.push(ListItem::new(Span::raw(bottom_text.to_string())))
+        }
+
+        let mut title = "Alert".to_string();
+        if let Some(ref notif_count) = app.total_notifications {
+            title = format!("Alert ({})", notif_count);
+        }
+
+        let list = List::new(list_items)
+            .block(
+                Block::default()
+                .title(Span::styled(title, get_color(highlight_state, app.user_config.theme)))
+                .borders(Borders::ALL)
+                .border_style(get_color(highlight_state, app.user_config.theme)),
+            )
+            .style(Style::default().fg(app.user_config.theme.text))
+            .highlight_style(get_color(highlight_state, app.user_config.theme).add_modifier(Modifier::BOLD));
+
+        f.render_stateful_widget(list, layout_chunk, &mut state);
+    }
+}
+
+pub fn draw_notification_detail<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
+    where
+    B: Backend,
+{
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(2), Constraint::Length(98)].as_ref())
+        .margin(2)
+        .split(layout_chunk);
+
+    let mut top_text = Text::from("Accounts");
+    top_text.patch_style(Style::default().fg(Color::Yellow));
+
+    // Contains the banner
+    let top_text = Paragraph::new(top_text)
+        .style(Style::default().fg(Color::Yellow))
+        .block(Block::default());
+    f.render_widget(top_text, chunks[0]);
+
+
+    if let Some(ref notif) = app.selected_notification {
+        let mut text = String::new();
+        text.push_str("Subject: ");
+        text.push_str(&notif.subject);
+        if let Ok(timestamp) = notif.create_time.parse::<i64>() {
+            text.push_str(" on ");
+            text.push_str(&date_from_timestamp(timestamp));
+        }
+        text.push_str("\n\n ");
+        text.push_str(" ➤ ");
+        text.push_str(&notif.msg_text);
+        text.push_str("\n ");
+        text.push_str(&notif.msg_text);
+        text.push_str("\n ");
+
+        let text = Paragraph::new(text)
+            .style(Style::default().fg(app.user_config.theme.text))
+            .block(Block::default())
+            .wrap(Wrap { trim: false });
+        f.render_widget(text, chunks[1]);
+    }
+}
+
 fn draw_sidebar_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     where
     B: Backend,
@@ -441,7 +540,7 @@ pub fn draw_watch_list_block<B>(f: &mut Frame<B>, app: &App, layout_chunk: Rect)
     let highlight_state = (
         current_route.active_block == ActiveBlock::WatchList,
         current_route.hovered_block == ActiveBlock::WatchList,
-        );
+    );
 
     let list = List::new(list_items)
         .block(

@@ -1,8 +1,10 @@
 mod common_key_events;
 mod dialog;
 mod empty;
-mod portfolio;
+mod home;
 mod input;
+mod notification;
+mod portfolio;
 mod order_form;
 mod watch_list;
 mod account_list;
@@ -49,9 +51,9 @@ fn handle_block_events(key: Key, app: &mut App) {
         ActiveBlock::SearchResults => {
             search_results::handler(key, app);
         }
-        // ActiveBlock::Home => {
-        //     home::handler(key, app);
-        // }
+        ActiveBlock::Home => {
+            home::handler(key, app);
+        }
         ActiveBlock::WatchList => {
             watch_list::handler(key, app);
         }
@@ -67,12 +69,12 @@ fn handle_block_events(key: Key, app: &mut App) {
         ActiveBlock::OrderForm => {
             order_form::handler(key, app);
         }
+        ActiveBlock::Notifications => {
+            notification::handler(key, app);
+        }
         ActiveBlock::Empty => {
             empty::handler(key, app);
         }
-    //     ActiveBlock::RecentlyPlayed => {
-    //         recently_played::handler(key, app);
-    //     }
     //     ActiveBlock::Dialog(_) => {
     //         dialog::handler(key, app);
     //     }
@@ -85,6 +87,9 @@ fn handle_escape(app: &mut App) {
         ActiveBlock::SearchResults => {
             app.search_results.tickers = None;
             app.search_results.selected_ticker_index = None;
+            app.pop_navigation_stack();
+        }
+        ActiveBlock::Notifications | ActiveBlock::NotificationDetail => {
             app.pop_navigation_stack();
         }
         ActiveBlock::TickerDetail => {
